@@ -1,0 +1,6 @@
+Potentials restricted to the range: -7.48678E+00 <= U <= 7.48678E+00
+Steady state results
+====================
+C_c[Na] = 5.07155E+00; C_c[K] = 7.16449E+01; C_c[Cl] = 1.16902E+01
+E_t = -7.60565E+01; E_a = -1.81886E+01; E_b = -5.78679E+01
+V/V(t=0) = 9.68841E-01
