@@ -7,4 +7,5 @@ mini-httpd.log
 mini-httpd.pid
 ecg_lab/
 build/
+gui/www
 
