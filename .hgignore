@@ -8,4 +8,4 @@ mini-httpd.pid
 ecg_lab/
 build/
 gui/www
-
+3rd-party/
