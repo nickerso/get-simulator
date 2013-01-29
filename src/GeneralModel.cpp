@@ -10,15 +10,7 @@
 #include "common.hpp"
 #include "GeneralModel.hpp"
 
-#ifndef IDA
-
-#ifdef USE_KINSOL
-#  include "kinsol.hpp"
-#else
-#  include "NewtonRaphson.hpp"
-#endif
-
-#endif
+#include "kinsol.hpp"
 
 // Physical constants
 static const double F = 9.6485341e4; // nC.nmol^-1
@@ -105,7 +97,6 @@ void GeneralModel::initialise()
 
 double GeneralModel::solveOpenCircuitPotentials(int& errorFlag, const bool updateOnly)
 {
-#ifndef IDA
     errorFlag = 0;
 	/**
 	 * This is the function called by KINSOL when solving for the open-circuit case.
@@ -164,52 +155,6 @@ double GeneralModel::solveOpenCircuitPotentials(int& errorFlag, const bool updat
         if (debugLevel() > 10) std::cout << "Current open-circuit error = " << error << std::endl;
     }
     return error;
-#else
-    errorFlag = 0;
-    solveVoltageClampPotentials(updateOnly);
-    /**
-     * This is the function called by KINSOL when solving for the open-circuit case.
-     */
-    if (updateOnly && (debugLevel() > 19)) std::cout << "Updating open-circuit electroneutrality" << std::endl;
-
-    /* solve for electroneutrality as per the open-circuit case presented in Figure 4
-     * of the Latta et al (1984) paper. Talk about E_x but actually using U_x.
-     * This ensures I_j + I_a = I_t
-     */
-    I_t = 0.0; // open-circuit condition
-
-    /*
-     * 1) initial value of E_t is estimated. Here we start with the current value of E_t, so
-     * do nothing.
-     */
-
-    /*
-     * 2) solve for E_a as per voltage-clamp conditions with current estimate of E_t
-     */
-
-    /*
-     * 3) compute I_j and the current value of E_t (for the values of E_a and E_b just solved for)
-     */
-    calculateSoluteParacellularFluxes();
-    compute_I_j();
-
-    /*
-     * 4) compute I_j + I_a and compare to I_t. If within tolerance, then E_a, E_b, and E_t are consistent
-     * with the requirements of electroneutrality. Otherwise, refine E_t using Newton-Raphson step and
-     * return to step 2.
-     */
-    double error;
-    if (updateOnly)
-    {
-        error = 0.0;
-    }
-    else
-    {
-        error = I_j + I_a - I_t;
-        if (debugLevel() > 10) std::cout << "Current open-circuit error = " << error << std::endl;
-    }
-    return error;
-#endif
 }
 
 double GeneralModel::solveVoltageClampPotentials(const bool updateOnly)
@@ -375,7 +320,6 @@ std::vector<double> GeneralModel::calculateRHS(double time, int &errorFlag)
 {
     std::vector<double> f(C_c.size() + 1); // number of species + cell volume
 
-#ifndef IDA
     if (debugLevel() > 1) std::cout << "Calculate RHS for time: " << time << std::endl;
 
     // compute membrane potentials
@@ -403,10 +347,6 @@ std::vector<double> GeneralModel::calculateRHS(double time, int &errorFlag)
     {
         std::cerr << "Doh! invalid modelMode?" << std::endl;
     }
-#else
-    solveVoltageClampPotentials(true);
-    solveOpenCircuitPotentials(errorFlag, true);
-#endif
 
     // dV/dt
     calculateWaterFluxes();

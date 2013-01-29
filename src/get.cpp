@@ -11,11 +11,7 @@
 #include "common.hpp"
 #include "GeneralModel.hpp"
 #include "cvodes.hpp"
-#ifdef USE_KINSOL
-#  include "kinsol.hpp"
-#else
-#  include "NewtonRaphson.hpp"
-#endif
+#include "kinsol.hpp"
 
 int main(int argc, char* argv[])
 {
