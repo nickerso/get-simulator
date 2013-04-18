@@ -13,6 +13,10 @@
 #include "cvodes.hpp"
 #include "kinsol.hpp"
 
+/*
+  Can GET be a collection of code that gets combined with the generated code from CellML models and then compiled by LLVM at run time? or is GET an application that calls code generated from CellML models as required?
+ */
+
 int main(int argc, char* argv[])
 {
 	// Main algorithm from Latta et al (1984), Figure 2.
