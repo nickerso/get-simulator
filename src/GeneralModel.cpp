@@ -273,7 +273,7 @@ void GeneralModel::calculatePassiveFluxes(std::vector<double>& J, const std::vec
         {
             // as per my interpretation of footnote 4 of Latta paper, to avoid / by zero and given improved
             // accuracy of double vs float...
-            J[i] = P[i] * z[i] * (C1[i] - C2[i]);
+            J[i] = P[i] * z[i] * (F / (R * T)) * (C1[i] - C2[i]);
             if (debugLevel() > 99) std::cout << "; Japprox[" << i << "] = " << J[i];
         }
     }
