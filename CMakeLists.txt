@@ -1,5 +1,5 @@
-# General Epithelial Transport
-PROJECT(get-solver)
+# General Epithelial Transport simulation tool
+PROJECT(get-simulator)
 
 cmake_minimum_required(VERSION 2.8)
 
@@ -36,7 +36,7 @@ SET(get_SRCS
   src/kinsol.cpp
 )
 
-set(EXECUTABLE_NAME "get")
+set(EXECUTABLE_NAME "get-simulator")
 ADD_EXECUTABLE(${EXECUTABLE_NAME} ${get_SRCS})
 TARGET_LINK_LIBRARIES(${EXECUTABLE_NAME}
   ${SUNDIALS_LIBRARIES}
