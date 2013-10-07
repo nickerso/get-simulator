@@ -29,7 +29,7 @@ INCLUDE_DIRECTORIES(
 
 # Sources
 SET(get_SRCS
-  src/get.cpp
+  src/get-simulator.cpp
   src/GeneralModel.cpp
   src/common.cpp
   src/cvodes.cpp
