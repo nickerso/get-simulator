@@ -5,6 +5,16 @@
 #include <iostream>
 #include <libxml/uri.h>
 
+// FIXME: need to do this better?
+#ifdef _MSC_VER
+#  include <direct.h>
+#  define PATH_MAX_SIZE 4096
+#  define getcwd _getcwd
+#else
+#  include <unistd.h>
+#  define PATH_MAX_SIZE pathconf(".",_PC_PATH_MAX)
+#endif
+
 #include "utils.hpp"
 
 class CurlData
@@ -32,17 +42,32 @@ static size_t retrieveContent(char* buffer, size_t size, size_t nmemb, void* str
     return bytes;
 }
 
+std::string buildAbsoluteUri(const std::string& uri, const std::string& base)
+{
+    std::string b = base;
+    if (b.empty())
+    {
+        int size = PATH_MAX_SIZE;
+        char* cwd = (char*)malloc(size);
+        if (!getcwd(cwd,size)) cwd[0] = '\0';
+        b = "file://";
+        b += cwd;
+        b += "/";
+        free(cwd);
+    }
+    xmlChar* fullURL = xmlBuildURI(BAD_CAST uri.c_str(), BAD_CAST b.c_str());
+    std::string url((char*)fullURL);
+    xmlFree(fullURL);
+    return url;
+}
 
 std::string getUrlContent(const std::string &url)
 {
-    xmlChar* fullURL = xmlBuildURI(BAD_CAST url.c_str(), BAD_CAST "file:///Users/dnic019/shared-folders/projects/kidney/GeneralEpithelialTransport/build/get-simulator/Debug/");
-    std::string _url((char*)fullURL);
-    xmlFree(fullURL);
-    std::cout << "URL to fetch: " << _url.c_str() << std::endl;
+    std::cout << "URL to fetch: " << url.c_str() << std::endl;
     static CurlData curlHandle;
     std::string data, headerData;
     CURL* curl = curlHandle.mCurl;
-    curl_easy_setopt(curl, CURLOPT_URL, _url.c_str());
+    curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
     curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, retrieveContent);
     curl_easy_setopt(curl, CURLOPT_WRITEHEADER, static_cast<void*>(&headerData));
     curl_easy_setopt(curl, CURLOPT_WRITEDATA, static_cast<void*>(&data));

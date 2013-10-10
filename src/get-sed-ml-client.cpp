@@ -33,7 +33,8 @@ int main(int argc, char* argv[])
         usage(argv[0]);
         return -1;
     }
-    std::string sedDocumentString = getUrlContent(argv[1]);
+    std::string url = buildAbsoluteUri(argv[1], "");
+    std::string sedDocumentString = getUrlContent(url);
     std::cout << "SED-ML document string: [[[" << sedDocumentString.c_str() << "]]]" << std::endl;
     SedDocument* doc;
     doc = readSedMLFromString(sedDocumentString.c_str());
