@@ -7,6 +7,8 @@
 #include <cmath>
 #include <iostream>
 
+#include <CellmlSimulator.hpp>
+
 #include "common.hpp"
 #include "GeneralModel.hpp"
 
@@ -29,7 +31,7 @@ static double calcE(const double U)
     return U * R * T / F;
 }
 
-GeneralModel::GeneralModel()
+GeneralModel::GeneralModel(const char *cellmlModelUrl)
 {
     const int numberOfSpecies = 5;
     C_a.resize(numberOfSpecies);

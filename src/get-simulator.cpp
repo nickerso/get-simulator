@@ -38,7 +38,7 @@ int main(int argc, char* argv[])
     }
 
     // Main algorithm from Latta et al (1984), Figure 2.
-    GeneralModel model;
+    GeneralModel model(argv[1]);
 
     setDebugLevel(0);
 
