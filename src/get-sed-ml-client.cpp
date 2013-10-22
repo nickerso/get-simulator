@@ -11,15 +11,49 @@
 
 #include <iostream>
 #include <fstream>
-#include <sedml/SedTypes.h>
+#include <map>
 
 #include "common.hpp"
 #include "GeneralModel.hpp"
 #include "cvodes.hpp"
 #include "kinsol.hpp"
 #include "utils.hpp"
+#include "sedml.hpp"
 
-LIBSEDML_CPP_NAMESPACE_USE
+class MySimulation
+{
+public:
+    MySimulation()
+    {
+        csim = false;
+        get = false;
+    }
+
+    bool csim;
+    bool get;
+    double initialTime;
+    double startTime;
+    double endTime;
+    int numberOfPoints;
+};
+typedef std::map<std::string, MySimulation> MySimulationList;
+
+class MyModel
+{
+public:
+    std::string source;
+};
+typedef std::map<std::string, MyModel> MyModelList;
+
+class MyTask
+{
+public:
+    std::string modelId;
+    std::string simulationId;
+};
+typedef std::map<std::string, MyTask> MyTaskList;
+
+
 
 static void usage(const char* progName)
 {
@@ -35,15 +69,25 @@ int main(int argc, char* argv[])
     }
     std::string url = buildAbsoluteUri(argv[1], "");
     std::string sedDocumentString = getUrlContent(url);
-    std::cout << "SED-ML document string: [[[" << sedDocumentString.c_str() << "]]]" << std::endl;
-    SedDocument* doc;
-    doc = readSedMLFromString(sedDocumentString.c_str());
-    if (doc->getErrorLog()->getNumFailsWithSeverity(LIBSEDML_SEV_ERROR) > 0)
+    if (sedDocumentString.empty())
     {
-        std::cerr << "Error loading SED-ML document: " << argv[1] << std::endl;
-        std::cerr << doc->getErrorLog()->toString();
-        delete doc;
+        std::cerr << "Unable to load document: " << url.c_str() << std::endl;
+        usage(argv[0]);
+        return -3;
+    }
+    //std::cout << "SED-ML document string: [[[" << sedDocumentString.c_str() << "]]]" << std::endl;
+    Sedml sed;
+    if (sed.parseFromString(sedDocumentString) != 0)
+    {
+        std::cerr << "Error parsing SED-ML document: " << url.c_str() << std::endl;
+        return -1;
+    }
+    if (sed.buildExecutionManifest() != 0)
+    {
+        std::cerr << "There were errors building the simulation execution manifest." << std::endl;
         return -2;
     }
+    sed.checkBob();
+
     return 0;
 }
