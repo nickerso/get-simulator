@@ -7,7 +7,16 @@
 LIBSEDML_CPP_NAMESPACE_USE
 
 typedef std::pair<std::string, std::string> StringPair;
+typedef std::map<std::string, std::string> StringMap;
 typedef std::map<std::string, StringPair> StringPairMap;
+
+static void printStringMap(StringMap& map)
+{
+    for (auto i = map.begin(); i != map.end(); ++i)
+    {
+        std::cout << "Namespace: " << i->first.c_str() << " ==> " << i->second.c_str() << std::endl;
+    }
+}
 
 static std::string nonEssentialString()
 {
@@ -39,13 +48,51 @@ public:
 
     int resolveTasks(SedDocument* doc)
     {
+        int numberOfErrors = 0;
         for (auto i = dataSets.begin(); i != dataSets.end(); ++i)
         {
             std::cout << "DataSet " << i->first.c_str() << ":" << std::endl;
             std::cout << "\tdata reference: " << i->second.first.c_str() << std::endl;
             std::cout << "\tlabel: " << i->second.second.c_str() << std::endl;
+            SedDataGenerator* dg = doc->getDataGenerator(i->second.first);
+            // FIXME: we're assuming, for now, that there is one variable and that variable is all we care about
+            if (dg->getNumVariables() != 1)
+            {
+                std::cerr << "We can only handle one variable, sorry!" << std::endl;
+                ++numberOfErrors;
+            }
+            else
+            {
+                StringMap namespaces;
+                SedVariable* v = dg->getVariable(0);
+                std::string id = v->isSetId() ? v->getId().c_str() : nonEssentialString();
+                std::string target = v->getTarget();
+                std::string taskRef = v->getTaskReference();
+                // grab all the namespaces to use when resolving the target xpaths
+                SedBase* current = v;
+                while (current)
+                {
+                    const XMLNamespaces* nss = current->getNamespaces();
+                    if (nss)
+                    {
+                        for (unsigned int i = 0; i < nss->getNumNamespaces(); ++i)
+                        {
+                            std::string prefix = nss->getPrefix(i);
+                            if (namespaces.count(prefix) == 0)
+                            {
+                                // only want to add a namespace if its not already in there
+                                namespaces[prefix] = nss->getURI(i);
+                            }
+                        }
+                    }
+                    current = current->getParentSedObject();
+                }
+                std::cout << "\t\tVariable " << id.c_str() << ": target=" << target.c_str()
+                     << "; task=" << taskRef.c_str() << std::endl;
+                printStringMap(namespaces);
+            }
         }
-        return 0;
+        return numberOfErrors;
     }
 
     const SedReport* sed;
@@ -58,11 +105,12 @@ class MyReportList : public std::vector<MyReport>
 public:
     int resolveTasks(SedDocument* doc)
     {
+        int numberOfErrors = 0;
         for (auto i = begin(); i != end(); ++i)
         {
-            i->resolveTasks(doc);
+            numberOfErrors += i->resolveTasks(doc);
         }
-        return 0;
+        return numberOfErrors;
     }
 };
 
@@ -129,7 +177,7 @@ int Sedml::buildExecutionManifest()
     if (numberOfErrors) return numberOfErrors;
     if (mReports)
     {
-        mReports->resolveTasks(mSed);
+        numberOfErrors = mReports->resolveTasks(mSed);
     }
 
     return numberOfErrors;
