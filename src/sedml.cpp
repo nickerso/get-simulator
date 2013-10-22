@@ -1,24 +1,69 @@
 #include <string>
 #include <iostream>
 #include <vector>
+#include <map>
 #include "sedml.hpp"
 
 LIBSEDML_CPP_NAMESPACE_USE
 
+typedef std::pair<std::string, std::string> StringPair;
+typedef std::map<std::string, StringPair> StringPairMap;
+
+static std::string nonEssentialString()
+{
+    static int counter = 1000;
+    std::stringstream ss;
+    ss << counter++;
+    std::string number(ss.str());
+    std::string value("bob_");
+    value += number;
+    return value;
+}
+
 class MyReport
 {
 public:
-    MyReport() :
-        sed(NULL)
+    MyReport(const SedReport* sedReport)
     {
+        sed = sedReport;
+        id = sed->getId();
+        for (unsigned int i = 0; i < sed->getNumDataSets(); ++i)
+        {
+            const SedDataSet* dataSet = sed->getDataSet(i);
+            // these strings are not required in the SED-ML document, so need to handle them being absent
+            std::string id = dataSet->isSetId() ? dataSet->getId() : nonEssentialString();
+            std::string label = dataSet->isSetLabel() ? dataSet->getLabel() : nonEssentialString();
+            dataSets[id] = StringPair(dataSet->getDataReference(), label);
+        }
     }
 
-    SedReport* sed;
+    int resolveTasks(SedDocument* doc)
+    {
+        for (auto i = dataSets.begin(); i != dataSets.end(); ++i)
+        {
+            std::cout << "DataSet " << i->first.c_str() << ":" << std::endl;
+            std::cout << "\tdata reference: " << i->second.first.c_str() << std::endl;
+            std::cout << "\tlabel: " << i->second.second.c_str() << std::endl;
+        }
+        return 0;
+    }
+
+    const SedReport* sed;
+    std::string id;
+    StringPairMap dataSets;
 };
 
 class MyReportList : public std::vector<MyReport>
 {
-
+public:
+    int resolveTasks(SedDocument* doc)
+    {
+        for (auto i = begin(); i != end(); ++i)
+        {
+            i->resolveTasks(doc);
+        }
+        return 0;
+    }
 };
 
 Sedml::Sedml() : mSed(NULL), mReports(NULL)
@@ -58,9 +103,7 @@ int Sedml::buildExecutionManifest()
         case SEDML_OUTPUT_REPORT:
         {
           if (!mReports) mReports = new MyReportList();
-          MyReport report;
-          report.sed = static_cast<SedReport*>(current);
-          mReports->push_back(report);
+          mReports->push_back(MyReport(static_cast<SedReport*>(current)));
           break;
         }
         case SEDML_OUTPUT_PLOT2D:
@@ -83,6 +126,12 @@ int Sedml::buildExecutionManifest()
           break;
       }
     }
+    if (numberOfErrors) return numberOfErrors;
+    if (mReports)
+    {
+        mReports->resolveTasks(mSed);
+    }
+
     return numberOfErrors;
 }
 
