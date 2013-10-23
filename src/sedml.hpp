@@ -34,6 +34,12 @@ public:
      */
     int buildExecutionManifest();
 
+    /**
+     * @brief Execute the simulation tasks required for this SED-ML document.
+     * @return zero on success, non-zero on failure.
+     */
+    int execute();
+
     int checkBob();
 
 private:

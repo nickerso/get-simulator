@@ -47,11 +47,20 @@ int main(int argc, char* argv[])
         std::cerr << "Error parsing SED-ML document: " << url.c_str() << std::endl;
         return -1;
     }
+    // make sure we should be able to execute all the required tasks.
     if (sed.buildExecutionManifest() != 0)
     {
         std::cerr << "There were errors building the simulation execution manifest." << std::endl;
         return -2;
     }
+
+    // now we can actually execute the tasks
+    if (sed.execute() != 0)
+    {
+        std::cerr << "There were some errors executing the simulation tasks." << std::endl;
+        return -3;
+    }
+
     //sed.checkBob();
 
     return 0;

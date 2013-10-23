@@ -40,15 +40,6 @@ public:
     StringMap namespaces; // used to resolve the target XPath in the source document
 };
 
-class MyTask
-{
-public:
-    std::string id;
-    std::string name;
-    std::string modelReference;
-    std::string simulationReference;
-};
-
 class MyModel
 {
 public:
@@ -98,6 +89,35 @@ private:
     bool mGet;
     std::string mMethod; // GET: open-circuit or closed-circuit?
 };
+
+class MyTask
+{
+public:
+    int execute(std::map<std::string, MyModel>& models, std::map<std::string, MySimulation>& simulations)
+    {
+        int numberOfErrors = 0;
+        std::cout << "\n\nExecuting: " << id.c_str() << std::endl;
+        std::cout << "\tsimulation = " << simulationReference.c_str() << std::endl;
+        std::cout << "\tmodel = " << modelReference.c_str() << std::endl;
+        //const MyModel& model = models[modelReference];
+        const MySimulation& simulation = simulations[simulationReference];
+        if (simulation.isCsim())
+        {
+            std::cout << "\trunning simulation task using CSim..." << std::endl;
+        }
+        else if (simulation.isGet())
+        {
+            std::cout << "\trunning simulation task using GET..." << std::endl;
+        }
+        return numberOfErrors;
+    }
+
+    std::string id;
+    std::string name;
+    std::string modelReference;
+    std::string simulationReference;
+};
+
 
 class MyReport
 {
@@ -247,6 +267,7 @@ public:
                         s.startTime = tc->getOutputStartTime();
                         s.endTime = tc->getOutputEndTime();
                         s.numberOfPoints = tc->getNumberOfPoints();
+                        simulations[s.id] = s;
                     }
                     else if ((kisaoId == "KISAO:0000000") && alg->isSetAnnotation())
                     {
@@ -275,6 +296,7 @@ public:
                                 s.startTime = tc->getOutputStartTime();
                                 s.endTime = tc->getOutputEndTime();
                                 s.numberOfPoints = tc->getNumberOfPoints();
+                                simulations[s.id] = s;
                             }
                         }
                     }
@@ -286,6 +308,16 @@ public:
                 std::cerr << "Unable to handle simulations that are not uniform time courses" << std::endl;
                 ++numberOfErrors;
             }
+        }
+        return numberOfErrors;
+    }
+
+    int execute()
+    {
+        int numberOfErrors = 0;
+        for (auto i = tasks.begin(); i != tasks.end(); ++i)
+        {
+            numberOfErrors += i->second.execute(models, simulations);
         }
         return numberOfErrors;
     }
@@ -313,6 +345,16 @@ public:
         }
         return numberOfErrors;
     }
+
+    int execute()
+    {
+        int numberOfErrors = 0;
+        for (auto i = begin(); i != end(); ++i)
+        {
+            numberOfErrors += i->execute();
+        }
+        return numberOfErrors;
+    }
 };
 
 Sedml::Sedml() : mSed(NULL), mReports(NULL)
@@ -337,6 +379,11 @@ int Sedml::parseFromString(const std::string &xmlDocument)
         mSed = NULL;
         return numErrors;
     }
+    if (mSed->getNumErrors() > 0)
+    {
+      std::cout << "Warnings: " << mSed->getErrorLog()->toString() << std::endl;
+    }
+
     return 0;
 }
 
@@ -378,9 +425,18 @@ int Sedml::buildExecutionManifest()
     if (numberOfErrors) return numberOfErrors;
     if (mReports)
     {
+        // we have some outputs that we can handle, so make sure we have all the information that we need
+        // to start configuring and running simulations.
         numberOfErrors = mReports->resolveTasks(mSed);
     }
 
+    return numberOfErrors;
+}
+
+int Sedml::execute()
+{
+    int numberOfErrors = 0;
+    if (mReports) numberOfErrors = mReports->execute();
     return numberOfErrors;
 }
 
