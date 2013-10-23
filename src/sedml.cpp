@@ -29,6 +29,76 @@ static std::string nonEssentialString()
     return value;
 }
 
+class MyData
+{
+public:
+    std::string id;
+    std::string label;
+    std::string dataReference;
+    std::string target;
+    std::string taskReference;
+    StringMap namespaces; // used to resolve the target XPath in the source document
+};
+
+class MyTask
+{
+public:
+    std::string id;
+    std::string name;
+    std::string modelReference;
+    std::string simulationReference;
+};
+
+class MyModel
+{
+public:
+    std::string id;
+    std::string name;
+    std::string source;
+};
+
+class MySimulation
+{
+public:
+    MySimulation()
+    {
+        mCsim = false;
+        mGet = false;
+    }
+    void setSimulationTypeCsim()
+    {
+        mCsim = true;
+        mGet = false;
+    }
+    bool isCsim() const
+    {
+        return mCsim;
+    }
+
+    void setSimulationTypeGet(const std::string& method)
+    {
+        mCsim = false;
+        mGet = true;
+        mMethod = method;
+    }
+    bool isGet() const
+    {
+        return mGet;
+    }
+
+    std::string id;
+    double initialTime;
+    double startTime;
+    double endTime;
+    int numberOfPoints;
+
+private:
+    // FIXME: should use enum? ok for now since there are just two options
+    bool mCsim;
+    bool mGet;
+    std::string mMethod; // GET: open-circuit or closed-circuit?
+};
+
 class MyReport
 {
 public:
@@ -39,22 +109,25 @@ public:
         for (unsigned int i = 0; i < sed->getNumDataSets(); ++i)
         {
             const SedDataSet* dataSet = sed->getDataSet(i);
+            MyData d;
             // these strings are not required in the SED-ML document, so need to handle them being absent
-            std::string id = dataSet->isSetId() ? dataSet->getId() : nonEssentialString();
-            std::string label = dataSet->isSetLabel() ? dataSet->getLabel() : nonEssentialString();
-            dataSets[id] = StringPair(dataSet->getDataReference(), label);
+            d.id = dataSet->isSetId() ? dataSet->getId() : nonEssentialString();
+            d.label = dataSet->getLabel(); // empty string if no label set
+            d.dataReference = dataSet->getDataReference();
+            dataSets[d.id] = d;
         }
     }
 
-    int resolveTasks(SedDocument* doc)
+    int resolveDataSets(SedDocument* doc)
     {
         int numberOfErrors = 0;
         for (auto i = dataSets.begin(); i != dataSets.end(); ++i)
         {
             std::cout << "DataSet " << i->first.c_str() << ":" << std::endl;
-            std::cout << "\tdata reference: " << i->second.first.c_str() << std::endl;
-            std::cout << "\tlabel: " << i->second.second.c_str() << std::endl;
-            SedDataGenerator* dg = doc->getDataGenerator(i->second.first);
+            MyData& d = i->second;
+            std::cout << "\tdata reference: " << d.dataReference.c_str() << std::endl;
+            std::cout << "\tlabel: " << (d.label == "" ? d.label.c_str() : "no label") << std::endl;
+            SedDataGenerator* dg = doc->getDataGenerator(d.dataReference);
             // FIXME: we're assuming, for now, that there is one variable and that variable is all we care about
             if (dg->getNumVariables() != 1)
             {
@@ -63,11 +136,10 @@ public:
             }
             else
             {
-                StringMap namespaces;
                 SedVariable* v = dg->getVariable(0);
                 std::string id = v->isSetId() ? v->getId().c_str() : nonEssentialString();
-                std::string target = v->getTarget();
-                std::string taskRef = v->getTaskReference();
+                d.target = v->getTarget();
+                d.taskReference = v->getTaskReference();
                 // grab all the namespaces to use when resolving the target xpaths
                 SedBase* current = v;
                 while (current)
@@ -78,18 +150,141 @@ public:
                         for (unsigned int i = 0; i < nss->getNumNamespaces(); ++i)
                         {
                             std::string prefix = nss->getPrefix(i);
-                            if (namespaces.count(prefix) == 0)
+                            if (d.namespaces.count(prefix) == 0)
                             {
                                 // only want to add a namespace if its not already in there
-                                namespaces[prefix] = nss->getURI(i);
+                                d.namespaces[prefix] = nss->getURI(i);
                             }
                         }
                     }
                     current = current->getParentSedObject();
                 }
-                std::cout << "\t\tVariable " << id.c_str() << ": target=" << target.c_str()
-                     << "; task=" << taskRef.c_str() << std::endl;
-                printStringMap(namespaces);
+                std::cout << "\t\tVariable " << d.id.c_str() << ": target=" << d.target.c_str()
+                     << "; task=" << d.taskReference.c_str() << std::endl;
+                printStringMap(d.namespaces);
+            }
+        }
+        return numberOfErrors;
+    }
+
+    int resolveTasks(SedDocument* doc)
+    {
+        int numberOfErrors = 0;
+        for (auto i = dataSets.begin(); i != dataSets.end(); ++i)
+        {
+            std::cout << "DataSet " << i->first.c_str() << ":" << std::endl;
+            MyData& d = i->second;
+            const SedTask* task = doc->getTask(d.taskReference);
+            MyTask t;
+            t.id = task->getId();
+            if (tasks.count(t.id) == 0)
+            {
+                std::cout << "Adding task: " << t.id.c_str() << " to the execution manifest" << std::endl;
+                t.name = task->getName();
+                t.modelReference = task->getModelReference();
+                t.simulationReference = task->getSimulationReference();
+                tasks[t.id] = t;
+            }
+            else std::cout << "Task (" << t.id.c_str() << ") already in the execution manifest" << std::endl;
+        }
+        return numberOfErrors;
+    }
+
+    int resolveModels(SedDocument* doc)
+    {
+        int numberOfErrors = 0;
+        for (auto i = tasks.begin(); i != tasks.end(); ++i)
+        {
+            MyTask& task = i->second;
+            SedModel* model = doc->getModel(task.modelReference);
+            MyModel m;
+            m.id = model->getId();
+            if (models.count(m.id) == 0)
+            {
+                std::cout << "Adding model: " << m.id.c_str() << " to the execution manifest" << std::endl;
+                std::string language = model->getLanguage();
+                // we can only handle CellML models.
+                if (language.find("cellml"))
+                {
+                    m.name = model->getName(); // empty string is ok
+                    // FIXME: assuming here that the source is always a cellml model, but could be a reference to another model? or would that be a modelReference?
+                    m.source = model->getSource();
+                    models[m.id] = m;
+                }
+                else
+                {
+                    std::cerr << "Sorry, we can only handle CellML models." << std::endl;
+                    ++numberOfErrors;
+                }
+            }
+            else std::cout << "Model (" << m.id.c_str() << ") is already in the execution manifest" << std::endl;
+        }
+        return numberOfErrors;
+    }
+
+    int resolveSimulations(SedDocument* doc)
+    {
+        int numberOfErrors = 0;
+        for (auto i = tasks.begin(); i != tasks.end(); ++i)
+        {
+            MyTask& task = i->second;
+            SedSimulation* simulation = doc->getSimulation(task.simulationReference);
+            if (simulation->getTypeCode() == SEDML_SIMULATION_UNIFORMTIMECOURSE)
+            {
+                MySimulation s;
+                s.id = simulation->getId();
+                if (simulations.count(s.id) == 0)
+                {
+                    std::cout << "Adding simulation: " << s.id.c_str() << " to the execution manifest" << std::endl;
+                    SedUniformTimeCourse* tc = static_cast<SedUniformTimeCourse*>(simulation);
+                    const SedAlgorithm* alg = tc->getAlgorithm();
+                    std::string kisaoId = alg->getKisaoID();
+                    if (kisaoId == "KISAO:0000019")
+                    {
+                        // CVODE integration, we can handle that with CSim
+                        s.setSimulationTypeCsim();
+                        s.initialTime = tc->getInitialTime();
+                        s.startTime = tc->getOutputStartTime();
+                        s.endTime = tc->getOutputEndTime();
+                        s.numberOfPoints = tc->getNumberOfPoints();
+                    }
+                    else if ((kisaoId == "KISAO:0000000") && alg->isSetAnnotation())
+                    {
+                        // FIXME: this all needs to be namespace aware?!
+                        // need to check the annotation to see what to do.
+                        XMLNode* annotation = alg->getAnnotation();
+                        if (annotation->getNumChildren() != 1)
+                        {
+                            std::cerr << "Can't handle custom algorithm:\n";
+                            std::cerr << annotation->toXMLString() << std::endl;
+                            ++numberOfErrors;
+                        }
+                        else
+                        {
+                            XMLNode& csimGetSimulator = annotation->getChild(0);
+                            if (!csimGetSimulator.hasAttr("method"))
+                            {
+                                std::cerr << "Missing method attribute on:\n"
+                                          << csimGetSimulator.toXMLString() << std::endl;
+                                ++numberOfErrors;
+                            }
+                            else
+                            {
+                                s.setSimulationTypeGet(csimGetSimulator.getAttrValue("method"));
+                                s.initialTime = tc->getInitialTime();
+                                s.startTime = tc->getOutputStartTime();
+                                s.endTime = tc->getOutputEndTime();
+                                s.numberOfPoints = tc->getNumberOfPoints();
+                            }
+                        }
+                    }
+                }
+                else std::cout << "Simulation (" << s.id.c_str() << ") already in execution manifest." << std::endl;
+            }
+            else
+            {
+                std::cerr << "Unable to handle simulations that are not uniform time courses" << std::endl;
+                ++numberOfErrors;
             }
         }
         return numberOfErrors;
@@ -97,7 +292,10 @@ public:
 
     const SedReport* sed;
     std::string id;
-    StringPairMap dataSets;
+    std::map<std::string, MyData> dataSets;
+    std::map<std::string, MyTask> tasks;
+    std::map<std::string, MyModel> models;
+    std::map<std::string, MySimulation> simulations;
 };
 
 class MyReportList : public std::vector<MyReport>
@@ -108,7 +306,10 @@ public:
         int numberOfErrors = 0;
         for (auto i = begin(); i != end(); ++i)
         {
+            numberOfErrors += i->resolveDataSets(doc);
             numberOfErrors += i->resolveTasks(doc);
+            numberOfErrors += i->resolveModels(doc);
+            numberOfErrors += i->resolveSimulations(doc);
         }
         return numberOfErrors;
     }
