@@ -30,9 +30,10 @@ public:
      *simuation tasks that need to be executed. This method will fail if any
      *simulation tasks are outside the capabilities of this tool.
      *
+     * @param baseUri The base URI used to resolve any relative URL references in model sources.
      * @return zero on success, non-zero on failure.
      */
-    int buildExecutionManifest();
+    int buildExecutionManifest(const std::string& baseUri);
 
     /**
      * @brief Execute the simulation tasks required for this SED-ML document.

@@ -2,7 +2,11 @@
 #include <iostream>
 #include <vector>
 #include <map>
+
+#include "utils.hpp"
 #include "sedml.hpp"
+#include "dataset.hpp"
+#include "CellmlSimulator.hpp"
 
 LIBSEDML_CPP_NAMESPACE_USE
 
@@ -14,7 +18,7 @@ static void printStringMap(StringMap& map)
 {
     for (auto i = map.begin(); i != map.end(); ++i)
     {
-        std::cout << "Namespace: " << i->first.c_str() << " ==> " << i->second.c_str() << std::endl;
+        std::cout << "Key: " << i->first.c_str() << " ==> " << i->second.c_str() << std::endl;
     }
 }
 
@@ -28,17 +32,6 @@ static std::string nonEssentialString()
     value += number;
     return value;
 }
-
-class MyData
-{
-public:
-    std::string id;
-    std::string label;
-    std::string dataReference;
-    std::string target;
-    std::string taskReference;
-    StringMap namespaces; // used to resolve the target XPath in the source document
-};
 
 class MyModel
 {
@@ -93,7 +86,8 @@ private:
 class MyTask
 {
 public:
-    int execute(std::map<std::string, MyModel>& models, std::map<std::string, MySimulation>& simulations)
+    int execute(std::map<std::string, MyModel>& models, std::map<std::string, MySimulation>& simulations,
+                std::map<std::string, MyData>& dataSets)
     {
         int numberOfErrors = 0;
         std::cout << "\n\nExecuting: " << id.c_str() << std::endl;
@@ -108,6 +102,11 @@ public:
         else if (simulation.isGet())
         {
             std::cout << "\trunning simulation task using GET..." << std::endl;
+        }
+        else
+        {
+            std::cerr << "Unknown type of simulation?" << std::endl;
+            ++numberOfErrors;
         }
         return numberOfErrors;
     }
@@ -210,7 +209,7 @@ public:
         return numberOfErrors;
     }
 
-    int resolveModels(SedDocument* doc)
+    int resolveModels(SedDocument* doc, const std::string& baseUri)
     {
         int numberOfErrors = 0;
         for (auto i = tasks.begin(); i != tasks.end(); ++i)
@@ -228,7 +227,9 @@ public:
                 {
                     m.name = model->getName(); // empty string is ok
                     // FIXME: assuming here that the source is always a cellml model, but could be a reference to another model? or would that be a modelReference?
-                    m.source = model->getSource();
+                    m.source = buildAbsoluteUri(model->getSource(), baseUri);
+                    std::cout << "\tModel source: " << model->getSource().c_str() << std::endl;
+                    std::cout << "\tModel URL: " << m.source.c_str() << std::endl;
                     models[m.id] = m;
                 }
                 else
@@ -317,14 +318,14 @@ public:
         int numberOfErrors = 0;
         for (auto i = tasks.begin(); i != tasks.end(); ++i)
         {
-            numberOfErrors += i->second.execute(models, simulations);
+            numberOfErrors += i->second.execute(models, simulations, dataSets);
         }
         return numberOfErrors;
     }
 
     const SedReport* sed;
     std::string id;
-    std::map<std::string, MyData> dataSets;
+    DataSet dataSets;
     std::map<std::string, MyTask> tasks;
     std::map<std::string, MyModel> models;
     std::map<std::string, MySimulation> simulations;
@@ -333,14 +334,14 @@ public:
 class MyReportList : public std::vector<MyReport>
 {
 public:
-    int resolveTasks(SedDocument* doc)
+    int resolveTasks(SedDocument* doc, const std::string& baseUri)
     {
         int numberOfErrors = 0;
         for (auto i = begin(); i != end(); ++i)
         {
             numberOfErrors += i->resolveDataSets(doc);
             numberOfErrors += i->resolveTasks(doc);
-            numberOfErrors += i->resolveModels(doc);
+            numberOfErrors += i->resolveModels(doc, baseUri);
             numberOfErrors += i->resolveSimulations(doc);
         }
         return numberOfErrors;
@@ -387,7 +388,7 @@ int Sedml::parseFromString(const std::string &xmlDocument)
     return 0;
 }
 
-int Sedml::buildExecutionManifest()
+int Sedml::buildExecutionManifest(const std::string& baseUri)
 {
     int numberOfErrors = 0;
     if (mReports) delete mReports;
@@ -427,7 +428,7 @@ int Sedml::buildExecutionManifest()
     {
         // we have some outputs that we can handle, so make sure we have all the information that we need
         // to start configuring and running simulations.
-        numberOfErrors = mReports->resolveTasks(mSed);
+        numberOfErrors = mReports->resolveTasks(mSed, baseUri);
     }
 
     return numberOfErrors;

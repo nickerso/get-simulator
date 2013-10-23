@@ -47,8 +47,9 @@ int main(int argc, char* argv[])
         std::cerr << "Error parsing SED-ML document: " << url.c_str() << std::endl;
         return -1;
     }
-    // make sure we should be able to execute all the required tasks.
-    if (sed.buildExecutionManifest() != 0)
+    // make sure we should be able to execute all the required tasks. We use the SED-ML document URI
+    // to resolve any relative URLs referenced as model sources.
+    if (sed.buildExecutionManifest(url) != 0)
     {
         std::cerr << "There were errors building the simulation execution manifest." << std::endl;
         return -2;

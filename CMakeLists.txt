@@ -50,6 +50,7 @@ SET(get_SRCS
 )
 SET(get_sedml_SRCS
   src/sedml.cpp
+  src/dataset.cpp
   src/get-sed-ml-client.cpp
   ${COMMON_SRCS}
 )
