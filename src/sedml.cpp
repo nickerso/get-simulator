@@ -126,7 +126,7 @@ public:
             std::cout << "DataSet " << i->first.c_str() << ":" << std::endl;
             MyData& d = i->second;
             std::cout << "\tdata reference: " << d.dataReference.c_str() << std::endl;
-            std::cout << "\tlabel: " << (d.label == "" ? d.label.c_str() : "no label") << std::endl;
+            std::cout << "\tlabel: " << (d.label == "" ? "no label" : d.label.c_str()) << std::endl;
             SedDataGenerator* dg = doc->getDataGenerator(d.dataReference);
             // FIXME: we're assuming, for now, that there is one variable and that variable is all we care about
             if (dg->getNumVariables() != 1)
