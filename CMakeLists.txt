@@ -51,6 +51,7 @@ SET(get_SRCS
 SET(get_sedml_SRCS
   src/sedml.cpp
   src/dataset.cpp
+  src/simulationenginecsim.cpp
   src/get-sed-ml-client.cpp
   ${COMMON_SRCS}
 )
@@ -67,7 +68,7 @@ TARGET_LINK_LIBRARIES(${GET_EXECUTABLE_NAME}
 set(GET_SEDML_EXECUTABLE_NAME "get-sed-ml-client")
 ADD_EXECUTABLE(${GET_SEDML_EXECUTABLE_NAME} ${get_sedml_SRCS})
 TARGET_LINK_LIBRARIES(${GET_SEDML_EXECUTABLE_NAME}
-  ${libcsim_LIBRARIES}
+  ${LIBCSIM_LIBRARIES}
   ${CLIBSEDML_LIBRARIES}
   ${SUNDIALS_LIBRARIES}
   ${LIBXML2_LIBRARIES}

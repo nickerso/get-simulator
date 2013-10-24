@@ -6,7 +6,7 @@
 #include "utils.hpp"
 #include "sedml.hpp"
 #include "dataset.hpp"
-#include "CellmlSimulator.hpp"
+#include "simulationenginecsim.hpp"
 
 LIBSEDML_CPP_NAMESPACE_USE
 
@@ -93,11 +93,18 @@ public:
         std::cout << "\n\nExecuting: " << id.c_str() << std::endl;
         std::cout << "\tsimulation = " << simulationReference.c_str() << std::endl;
         std::cout << "\tmodel = " << modelReference.c_str() << std::endl;
-        //const MyModel& model = models[modelReference];
+        const MyModel& model = models[modelReference];
         const MySimulation& simulation = simulations[simulationReference];
         if (simulation.isCsim())
         {
             std::cout << "\trunning simulation task using CSim..." << std::endl;
+            SimulationEngineCsim csim;
+            csim.loadModel(model.source);
+            csim.setInitialTime(simulation.initialTime);
+            csim.setOutputStartTime(simulation.startTime);
+            csim.setOutputEndTime(simulation.endTime);
+            csim.setNumberOfPoints(simulation.numberOfPoints);
+
         }
         else if (simulation.isGet())
         {
@@ -315,6 +322,7 @@ public:
 
     int execute()
     {
+        // FIXME: this will re-execute tasks that occur in more than one report.
         int numberOfErrors = 0;
         for (auto i = tasks.begin(); i != tasks.end(); ++i)
         {
