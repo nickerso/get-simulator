@@ -87,7 +87,7 @@ class MyTask
 {
 public:
     int execute(std::map<std::string, MyModel>& models, std::map<std::string, MySimulation>& simulations,
-                std::map<std::string, MyData>& dataSets)
+                DataSet& dataSets)
     {
         int numberOfErrors = 0;
         std::cout << "\n\nExecuting: " << id.c_str() << std::endl;
@@ -95,6 +95,7 @@ public:
         std::cout << "\tmodel = " << modelReference.c_str() << std::endl;
         const MyModel& model = models[modelReference];
         const MySimulation& simulation = simulations[simulationReference];
+        std::vector<std::string> outputVariables;
         if (simulation.isCsim())
         {
             std::cout << "\trunning simulation task using CSim..." << std::endl;
@@ -104,6 +105,24 @@ public:
             csim.setOutputStartTime(simulation.startTime);
             csim.setOutputEndTime(simulation.endTime);
             csim.setNumberOfPoints(simulation.numberOfPoints);
+            int columnIndex = 1;
+            for (auto di = dataSets.begin(); di != dataSets.end(); ++di, ++columnIndex)
+            {
+                const MyData& d = di->second;
+                // we only want datasets relevant to this task
+                if (d.taskReference == this->id)
+                {
+                    outputVariables.push_back(d.id);
+                    std::cout << "\tAdding dataset: " << d.id.c_str() << "; to the outputs for this task."
+                              << std::endl;
+                    csim.addOutputVariable(d, columnIndex);
+                }
+            }
+            csim.compileModel();
+            std::cout << "Simulation results:\n";
+            for (auto i = outputVariables.begin(); i != outputVariables.end(); ++i)
+                std::cout << *i << "\t";
+            std::cout << std::endl;
 
         }
         else if (simulation.isGet())

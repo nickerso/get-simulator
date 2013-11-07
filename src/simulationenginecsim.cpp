@@ -28,7 +28,40 @@ int SimulationEngineCsim::loadModel(const std::string &modelUrl)
         std::cerr << "Error loading model string: " << flattenedModel.c_str() << std::endl;
         return -2;
     }
+    // create the default simulation definition
+    if (mCsim->createSimulationDefinition() != 0)
+    {
+        std::cerr <<"Error creating default simulation definition." << std::endl;
+        return -3;
+    }
     return 0;
+}
+
+int SimulationEngineCsim::compileModel()
+{
+    if (mCsim->compileModel() != 0)
+    {
+        std::cerr <<"Error compiling model." << std::endl;
+        return -1;
+    }
+    return 0;
+}
+
+int SimulationEngineCsim::addOutputVariable(const MyData &data, int columnIndex)
+{
+    int numberOfErrors = 0;
+    std::string variableId = mCsim->mapXpathToVariableId(data.target, data.namespaces);
+    if (variableId.length() > 0)
+    {
+        std::cout << "\t\tAdding output variable: '" << variableId << "'" << std::endl;
+        mCsim->addOutputVariable(variableId, columnIndex);
+    }
+    else
+    {
+        std::cerr << "Unable to map output variable target to a variable in the model: " << data.target << std::endl;
+        ++numberOfErrors;
+    }
+    return numberOfErrors;
 }
 
 double SimulationEngineCsim::getInitialTime() const
