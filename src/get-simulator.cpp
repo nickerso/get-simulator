@@ -169,7 +169,7 @@ int main(int argc, char* argv[])
     NaCl.push_back(66.7);
     double duration = 300.0;
     //setDebugLevel(51);
-    for (int i = 0; i < NaCl.size(); ++i)
+    for (unsigned int i = 0; i < NaCl.size(); ++i)
     {
         model.C_b[GeneralModel::Na] = NaCl[i];
         model.C_b[GeneralModel::Cl] = NaCl[i];

@@ -2,6 +2,7 @@
 #define SIMULATIONENGINECSIM_HPP
 
 #include <string>
+#include <vector>
 
 class CellmlSimulator;
 
@@ -18,18 +19,6 @@ public:
      */
     int loadModel(const std::string& modelUrl);
 
-    double getInitialTime() const;
-    void setInitialTime(double value);
-
-    double getOutputStartTime() const;
-    void setOutputStartTime(double value);
-
-    double getOutputEndTime() const;
-    void setOutputEndTime(double value);
-
-    int getNumberOfPoints() const;
-    void setNumberOfPoints(int value);
-
     /**
      * @brief Add the given data to this CSim instance's list of output variables.
      * @param data The data to register as an output variable.
@@ -39,17 +28,29 @@ public:
     int addOutputVariable(const MyData& data, int columnIndex);
 
     /**
-     * @brief Compile the model into an executable object. Should be called after all output variables have been added.
+     * @brief Initialise the simulation for this instance of the CSim tool. Should be called after all output variables
+     * have been added as they can not be added after the simulation is compiled into executable code.
+     * @param initialTime The initial value of the variable of integration.
+     * @param startTime The final value of the variable of integration, the value at which the user will start collecting output.
      * @return zero on success.
      */
-    int compileModel();
+    int initialiseSimulation(double initialTime, double startTime);
+
+    /**
+     * @brief Fetch the current values of the output variables for this instance of the simulation engine.
+     * @return A vector of the output variable values.
+     */
+    std::vector<double> getOutputValues();
+
+    /**
+     * @brief Simulate the model for one time period.
+     * @param dt
+     * @return zero on success.
+     */
+    int simulateModelOneStep(double dt);
 
 private:
     std::string mModelUrl;
-    double mInitialTime;
-    double mOutputStartTime;
-    double mOutputEndTime;
-    int mNumberOfPoints;
     CellmlSimulator* mCsim;
 };
 

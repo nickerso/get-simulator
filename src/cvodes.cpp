@@ -49,7 +49,8 @@ int Cvodes::initialise(GeneralModel* model, double initialTime, double maxStep)
 {
     int NEQ = model->C_c.size() + 1; // number of species + cell volume
     realtype reltol, abstol;
-    int flag, i;
+    int flag;
+    unsigned int i;
     N_Vector abstolVector;
 
     /* Create serial vector of length NEQ for I.C. */
@@ -67,9 +68,9 @@ int Cvodes::initialise(GeneralModel* model, double initialTime, double maxStep)
     /* Set the scalar relative tolerance */
     reltol = RTOL;
     abstol = ATOL; // could use a vector if needed
-    Ith(abstolVector, 1) = ATOL / 100.0; // tighter tolerance on volume which is several orders of magnitude
+    Ith(abstolVector, 1) = abstol / 100.0; // tighter tolerance on volume which is several orders of magnitude
                                          // smaller than the concentrations
-    for (i=0; i < model->C_c.size(); ++i) Ith(abstolVector, i+2) = ATOL;
+    for (i=0; i < model->C_c.size(); ++i) Ith(abstolVector, i+2) = abstol;
 
     /* Call CVodeCreate to create the solver memory and specify the
    * Backward Differentiation Formula and the use of a Newton iteration */
@@ -149,7 +150,7 @@ static int f(realtype t, N_Vector y, N_Vector ydot, void *user_data)
     GeneralModel* model = static_cast<GeneralModel*>(user_data);
     // update state variables
     model->V = Ith(y,1);
-    for (int i=0; i < model->C_c.size(); ++i) model->C_c[i] = Ith(y, i+2);
+    for (unsigned int i=0; i < model->C_c.size(); ++i) model->C_c[i] = Ith(y, i+2);
 
     int errorFlag = 0;
     std::vector<double> f = model->calculateRHS((double)t, errorFlag);
@@ -158,7 +159,7 @@ static int f(realtype t, N_Vector y, N_Vector ydot, void *user_data)
         std::cerr << "CVODES-RHS-fcn failed!" << std::endl;
         return -1; // negative value to indicate non-recoverable failure
     }
-    for (int i=0; i < f.size(); ++i) NV_Ith_S(ydot, i) = f[i];
+    for (unsigned int i=0; i < f.size(); ++i) NV_Ith_S(ydot, i) = f[i];
 
     return(0);
 }

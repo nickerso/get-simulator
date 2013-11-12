@@ -1,5 +1,5 @@
 # General Epithelial Transport simulation tool
-PROJECT(get-simulator)
+PROJECT(get-simulator-sedml)
 
 cmake_minimum_required(VERSION 2.8)
 
@@ -15,7 +15,10 @@ ENDIF(WIN32)
 FIND_PACKAGE(SUNDIALS REQUIRED)
 FIND_PACKAGE(LibCSim REQUIRED)
 FIND_PACKAGE(LibCsedml REQUIRED)
+FIND_PACKAGE(LibSBML REQUIRED)
 FIND_PACKAGE(LibXml2 REQUIRED QUIET)
+
+include(FindCellmlLibraries)
 
 set(PLATFORM_LIBS "curl")
 
@@ -31,9 +34,11 @@ INCLUDE_DIRECTORIES(
   ${CMAKE_SOURCE_DIR}/src
   ${CLIBSEDML_INCLUDE_DIRS}
   ${LIBCSIM_INCLUDE_DIRS}
+  ${LIBSBML_INCLUDE_DIRS}
   ${SUNDIALS_INCLUDE_DIR}
   ${LIBXML2_INCLUDE_DIR}
 )
+#/Users/dnic019/shared-folders/resources/std-libs/libsbml/5.8.0/include
 
 # Sources
 SET(COMMON_SRCS
@@ -70,7 +75,10 @@ ADD_EXECUTABLE(${GET_SEDML_EXECUTABLE_NAME} ${get_sedml_SRCS})
 TARGET_LINK_LIBRARIES(${GET_SEDML_EXECUTABLE_NAME}
   ${LIBCSIM_LIBRARIES}
   ${CLIBSEDML_LIBRARIES}
+  ${LIBSBML_LIBRARIES}
   ${SUNDIALS_LIBRARIES}
+  ${CELLML_LIBRARIES}
   ${LIBXML2_LIBRARIES}
   ${PLATFORM_LIBS}
 )
+#/Users/dnic019/shared-folders/resources/std-libs/libsbml/5.8.0/lib/libsbml.dylib

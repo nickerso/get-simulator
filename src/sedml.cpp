@@ -101,10 +101,6 @@ public:
             std::cout << "\trunning simulation task using CSim..." << std::endl;
             SimulationEngineCsim csim;
             csim.loadModel(model.source);
-            csim.setInitialTime(simulation.initialTime);
-            csim.setOutputStartTime(simulation.startTime);
-            csim.setOutputEndTime(simulation.endTime);
-            csim.setNumberOfPoints(simulation.numberOfPoints);
             int columnIndex = 1;
             for (auto di = dataSets.begin(); di != dataSets.end(); ++di, ++columnIndex)
             {
@@ -118,12 +114,37 @@ public:
                     csim.addOutputVariable(d, columnIndex);
                 }
             }
-            csim.compileModel();
+            // initialise the engine
+            if (csim.initialiseSimulation(simulation.initialTime, simulation.startTime) != 0)
+            {
+                std::cerr << "Error initialising simulation?" << std::endl;
+                return -1;
+            }
+            std::vector<double> results = csim.getOutputValues();
             std::cout << "Simulation results:\n";
             for (auto i = outputVariables.begin(); i != outputVariables.end(); ++i)
                 std::cout << *i << "\t";
             std::cout << std::endl;
-
+            for (auto j = results.begin(); j != results.end(); ++j)
+                std::cout << *j << "\t";
+            std::cout << std::endl;
+            double dt = (simulation.endTime - simulation.startTime) / simulation.numberOfPoints;
+            double time = simulation.startTime;
+            for (int i = 1; i <= simulation.numberOfPoints; ++i, time += dt)
+            {
+                if (csim.simulateModelOneStep(dt) == 0)
+                {
+                    results = csim.getOutputValues();
+                    for (auto j = results.begin(); j != results.end(); ++j)
+                        std::cout << *j << "\t";
+                    std::cout << std::endl;
+                }
+                else
+                {
+                    std::cerr << "Error in simulation at time = " << time << std::endl;
+                    break;
+                }
+            }
         }
         else if (simulation.isGet())
         {
@@ -192,7 +213,7 @@ public:
                     const XMLNamespaces* nss = current->getNamespaces();
                     if (nss)
                     {
-                        for (unsigned int i = 0; i < nss->getNumNamespaces(); ++i)
+                        for (int i = 0; i < nss->getNumNamespaces(); ++i)
                         {
                             std::string prefix = nss->getPrefix(i);
                             if (d.namespaces.count(prefix) == 0)

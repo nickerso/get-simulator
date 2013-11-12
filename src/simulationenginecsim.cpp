@@ -1,5 +1,6 @@
 #include <iostream>
 #include <map>
+#include <cmath>
 #include <CellmlSimulator.hpp>
 
 #include "dataset.hpp"
@@ -37,16 +38,6 @@ int SimulationEngineCsim::loadModel(const std::string &modelUrl)
     return 0;
 }
 
-int SimulationEngineCsim::compileModel()
-{
-    if (mCsim->compileModel() != 0)
-    {
-        std::cerr <<"Error compiling model." << std::endl;
-        return -1;
-    }
-    return 0;
-}
-
 int SimulationEngineCsim::addOutputVariable(const MyData &data, int columnIndex)
 {
     int numberOfErrors = 0;
@@ -64,40 +55,33 @@ int SimulationEngineCsim::addOutputVariable(const MyData &data, int columnIndex)
     return numberOfErrors;
 }
 
-double SimulationEngineCsim::getInitialTime() const
+int SimulationEngineCsim::initialiseSimulation(double initialTime, double startTime)
 {
-    return mInitialTime;
+    if (mCsim->compileModel() != 0)
+    {
+        std::cerr <<"SimulationEngineCsim::initialiseSimulation - Error compiling model." << std::endl;
+        return -1;
+    }
+    if (fabs(startTime-initialTime) > 1.0e-8)
+    {
+        std::vector<std::vector<double> > results = mCsim->simulateModel(initialTime, startTime, startTime, 1);
+        if (results.size() != 2)
+        {
+            std::cerr << "SimulationEngineCsim::initialiseSimulation - simulation results has more than one entry?! ("
+                      << results.size() << ")" << std::endl;
+            return -2;
+        }
+    }
+    mCsim->checkpointModelValues();
+    return 0;
 }
 
-void SimulationEngineCsim::setInitialTime(double value)
+std::vector<double> SimulationEngineCsim::getOutputValues()
 {
-    mInitialTime = value;
-}
-double SimulationEngineCsim::getOutputStartTime() const
-{
-    return mOutputStartTime;
+    return mCsim->getModelOutputs();
 }
 
-void SimulationEngineCsim::setOutputStartTime(double value)
+int SimulationEngineCsim::simulateModelOneStep(double dt)
 {
-    mOutputStartTime = value;
+    return mCsim->simulateModelOneStep(dt);
 }
-double SimulationEngineCsim::getOutputEndTime() const
-{
-    return mOutputEndTime;
-}
-
-void SimulationEngineCsim::setOutputEndTime(double value)
-{
-    mOutputEndTime = value;
-}
-int SimulationEngineCsim::getNumberOfPoints() const
-{
-    return mNumberOfPoints;
-}
-
-void SimulationEngineCsim::setNumberOfPoints(int value)
-{
-    mNumberOfPoints = value;
-}
-

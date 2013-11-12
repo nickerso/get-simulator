@@ -238,7 +238,7 @@ void GeneralModel::calculateSoluteParacellularFluxes()
 void GeneralModel::compute_I_a()
 {
 	I_a = 0;
-	for (int i=0; i<J_a.size(); ++i) I_a += z[i] * J_a[i];
+    for (unsigned int i=0; i<J_a.size(); ++i) I_a += z[i] * J_a[i];
     if (debugLevel() > 99) std::cout << "pre-I_a = " << I_a;
 	I_a *= F * A_a;
 }
@@ -246,7 +246,7 @@ void GeneralModel::compute_I_a()
 void GeneralModel::compute_I_b()
 {
     I_b = 0;
-    for (int i=0; i<J_b.size(); ++i) I_b += z[i] * J_b[i];
+    for (unsigned int i=0; i<J_b.size(); ++i) I_b += z[i] * J_b[i];
     if (debugLevel() > 99) std::cout << "; pre-I_b = " << I_b << std::endl;
     I_b *= F * A_b;
 }
@@ -254,7 +254,7 @@ void GeneralModel::compute_I_b()
 void GeneralModel::compute_I_j()
 {
     I_j = 0;
-    for (int i=0; i<J_j.size(); ++i) I_j += z[i] * J_j[i];
+    for (unsigned int i=0; i<J_j.size(); ++i) I_j += z[i] * J_j[i];
     I_j *= F * A_a;
 }
 
@@ -289,7 +289,7 @@ void GeneralModel::printState(std::ostream& s, double &time)
     E_a = calcE(U_a);
     E_b = calcE(U_b);
     s << "\t" << E_t << "\t" << E_a << "\t" << E_b;
-    for (int i=0; i< C_c.size(); ++i) s << "\t" << C_c[i];
+    for (unsigned int i=0; i< C_c.size(); ++i) s << "\t" << C_c[i];
     double JNa_net = J_a[Na] + J_j[Na];
     double JK_net = J_a[K] + J_j[K];
     s << "\t" << JNa_net << "\t" << JK_net << "\t" << I_t << "\t" << I_a << "\t" << I_b << "\t" << I_j;
@@ -356,7 +356,7 @@ std::vector<double> GeneralModel::calculateRHS(double time, int &errorFlag)
 
     // solutes
     calculateSoluteMembraneFluxes();
-    for (int i = 0; i < C_c.size(); ++i)
+    for (unsigned int i = 0; i < C_c.size(); ++i)
     {
         f[i+1] = (A_a * J_a[i] - A_b * J_b[i] - C_c[i] * f[0]) / V;
     }
@@ -366,7 +366,7 @@ std::vector<double> GeneralModel::calculateRHS(double time, int &errorFlag)
 void GeneralModel::calculateWaterFluxes()
 {
     Jw_a = Jw_b = 0;
-    for (int i = 0; i < C_c.size(); ++i)
+    for (unsigned int i = 0; i < C_c.size(); ++i)
     {
         Jw_a += sigma_a[i] * (C_c[i] - C_a[i]);
         Jw_b += sigma_b[i] * (C_c[i] - C_b[i]);
