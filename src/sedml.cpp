@@ -7,12 +7,10 @@
 #include "sedml.hpp"
 #include "dataset.hpp"
 #include "simulationenginecsim.hpp"
+#include "simulationengineget.hpp"
+#include "utilityclasses.hpp"
 
 LIBSEDML_CPP_NAMESPACE_USE
-
-typedef std::pair<std::string, std::string> StringPair;
-typedef std::map<std::string, std::string> StringMap;
-typedef std::map<std::string, StringPair> StringPairMap;
 
 static void printStringMap(StringMap& map)
 {
@@ -32,56 +30,6 @@ static std::string nonEssentialString()
     value += number;
     return value;
 }
-
-class MyModel
-{
-public:
-    std::string id;
-    std::string name;
-    std::string source;
-};
-
-class MySimulation
-{
-public:
-    MySimulation()
-    {
-        mCsim = false;
-        mGet = false;
-    }
-    void setSimulationTypeCsim()
-    {
-        mCsim = true;
-        mGet = false;
-    }
-    bool isCsim() const
-    {
-        return mCsim;
-    }
-
-    void setSimulationTypeGet(const std::string& method)
-    {
-        mCsim = false;
-        mGet = true;
-        mMethod = method;
-    }
-    bool isGet() const
-    {
-        return mGet;
-    }
-
-    std::string id;
-    double initialTime;
-    double startTime;
-    double endTime;
-    int numberOfPoints;
-
-private:
-    // FIXME: should use enum? ok for now since there are just two options
-    bool mCsim;
-    bool mGet;
-    std::string mMethod; // GET: open-circuit or closed-circuit?
-};
 
 class MyTask
 {
@@ -149,6 +97,10 @@ public:
         else if (simulation.isGet())
         {
             std::cout << "\trunning simulation task using GET..." << std::endl;
+            SimulationEngineGet get;
+            get.setOutputVariables();
+            get.initialiseSimulation();
+            get.getOutputValues();
         }
         else
         {

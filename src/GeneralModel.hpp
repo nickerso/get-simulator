@@ -22,7 +22,7 @@
 class GeneralModel
 {
 public:
-    GeneralModel(const char* cellmlModelUrl);
+    GeneralModel();
     ~GeneralModel();
 
 	/**

@@ -31,7 +31,7 @@ static double calcE(const double U)
     return U * R * T / F;
 }
 
-GeneralModel::GeneralModel(const char *cellmlModelUrl)
+GeneralModel::GeneralModel()
 {
     const int numberOfSpecies = 5;
     C_a.resize(numberOfSpecies);

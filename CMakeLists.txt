@@ -57,6 +57,7 @@ SET(get_sedml_SRCS
   src/sedml.cpp
   src/dataset.cpp
   src/simulationenginecsim.cpp
+  src/simulationengineget.cpp
   src/get-sed-ml-client.cpp
   ${COMMON_SRCS}
 )
