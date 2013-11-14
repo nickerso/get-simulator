@@ -1,6 +1,9 @@
 #ifndef UTILS_HPP
 #define UTILS_HPP
 
+#include <string>
+#include <vector>
+
 std::string getUrlContent(const std::string& url);
 
 std::vector<std::string>& splitString(const std::string &s, char delim, std::vector<std::string>& elems);

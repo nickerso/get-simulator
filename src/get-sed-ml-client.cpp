@@ -14,9 +14,6 @@
 #include <map>
 
 #include "common.hpp"
-#include "GeneralModel.hpp"
-#include "cvodes.hpp"
-#include "kinsol.hpp"
 #include "utils.hpp"
 #include "sedml.hpp"
 

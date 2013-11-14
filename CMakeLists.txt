@@ -42,6 +42,7 @@ INCLUDE_DIRECTORIES(
 
 # Sources
 SET(COMMON_SRCS
+  src/molecule.cpp
   src/GeneralModel.cpp
   src/common.cpp
   src/cvodes.cpp

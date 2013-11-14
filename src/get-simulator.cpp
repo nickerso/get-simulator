@@ -38,7 +38,7 @@ int main(int argc, char* argv[])
     }
 
     // Main algorithm from Latta et al (1984), Figure 2.
-    GeneralModel model(argv[1]);
+    GeneralModel model;
 
     setDebugLevel(0);
 
@@ -115,9 +115,9 @@ int main(int argc, char* argv[])
     // dump out SS results to compare to table 2 in Latta et al paper.
     std::cout << "Steady state results\n"
               << "====================\n"
-              << "C_c[Na] = " << model.C_c[GeneralModel::Na]
+              /*<< "C_c[Na] = " << model.C_c[GeneralModel::Na]
               << "; C_c[K] = " << model.C_c[GeneralModel::K]
-              << "; C_c[Cl] = " << model.C_c[GeneralModel::Cl] << "\n"
+              << "; C_c[Cl] = " << model.C_c[GeneralModel::Cl] << "\n"*/
               << "E_t = " << model.E_t << "; E_a = " << model.E_a
               << "; E_b = " << model.E_b << "\n"
               << "V/V(t=0) = " << model.V / initialVolume << std::endl;
@@ -171,8 +171,8 @@ int main(int argc, char* argv[])
     //setDebugLevel(51);
     for (unsigned int i = 0; i < NaCl.size(); ++i)
     {
-        model.C_b[GeneralModel::Na] = NaCl[i];
-        model.C_b[GeneralModel::Cl] = NaCl[i];
+        //model.C_b[GeneralModel::Na] = NaCl[i];
+        //model.C_b[GeneralModel::Cl] = NaCl[i];
         double serosalChangeTime = t;
         t_final += duration;
         bool mucosalSet = false;
@@ -181,8 +181,8 @@ int main(int argc, char* argv[])
             if (!mucosalSet && (t >= (serosalChangeTime + 10.0)))
             {
                 // 10 seconds later
-                model.C_a[GeneralModel::Na] = NaCl[i];
-                model.C_a[GeneralModel::Cl] = NaCl[i];
+                //model.C_a[GeneralModel::Na] = NaCl[i];
+                //model.C_a[GeneralModel::Cl] = NaCl[i];
                 mucosalSet = true;
             }
             double tout = t + delta_t;
@@ -196,7 +196,7 @@ int main(int argc, char* argv[])
         }
     }
     // and the final step puts Imax=0 simulating the addition of ouabain to the serosal solution
-    model.Imax = 0.0;
+    //model.Imax = 0.0;
     t_final += 500.0;
     while (t <= t_final)
     {

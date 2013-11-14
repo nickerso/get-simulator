@@ -10,6 +10,7 @@
 #include <CellmlSimulator.hpp>
 
 #include "common.hpp"
+#include "molecule.hpp"
 #include "GeneralModel.hpp"
 
 #include "kinsol.hpp"
@@ -33,19 +34,7 @@ static double calcE(const double U)
 
 GeneralModel::GeneralModel()
 {
-    const int numberOfSpecies = 5;
-    C_a.resize(numberOfSpecies);
-    C_b.resize(numberOfSpecies);
-    C_c.resize(numberOfSpecies);
-    P_a.resize(numberOfSpecies);
-    P_b.resize(numberOfSpecies);
-    P_j.resize(numberOfSpecies);
-    z.resize(numberOfSpecies);
-    sigma_a.resize(numberOfSpecies);
-    sigma_b.resize(numberOfSpecies);
-    J_a.resize(numberOfSpecies);
-    J_b.resize(numberOfSpecies);
-    J_j.resize(numberOfSpecies);
+    // nothing to do?
 }
 
 GeneralModel::~GeneralModel()
@@ -55,31 +44,33 @@ GeneralModel::~GeneralModel()
 
 void GeneralModel::initialise()
 {
+    // set up the mappings
+    int numberOfMolecules = mMolecules.size();
+    mC_a.resize(numberOfMolecules);
+    mC_b.resize(numberOfMolecules);
+    mC_c.resize(numberOfMolecules);
+    mP_a.resize(numberOfMolecules);
+    mP_b.resize(numberOfMolecules);
+    mP_j.resize(numberOfMolecules);
+    mZ.resize(numberOfMolecules);
+    mSigma_a.resize(numberOfMolecules);
+    mSigma_b.resize(numberOfMolecules);
+    mJ_a.resize(numberOfMolecules);
+    mJ_b.resize(numberOfMolecules);
+    mJ_j.resize(numberOfMolecules);
+    int j = 0;
+    for (auto i=mMolecules.begin(); i!=mMolecules.end(); ++i, ++j)
+    {
+        Molecule& m = i->second;
+        mC_a[j] = &(m.C_a); mC_b[j] = &(m.C_b); mC_c[j] = &(m.C_c);
+        mP_a[j] = &(m.P_a); mP_b[j] = &(m.P_b); mP_j[j] = &(m.P_j);
+        mJ_a[j] = &(m.J_a); mJ_b[j] = &(m.J_b); mJ_j[j] = &(m.J_j);
+        mSigma_a[j] = &(m.sigma_a); mSigma_b[j] = &(m.sigma_b);
+        mZ[j] = &(m.z);
+    }
+
 	// data from Table 1 in Latta et al (1984)
-	C_a[Na] = 104.0; C_a[K] = 5.3; C_a[Cl] = 102.0;  // mM
-	C_a[X1] = 7.3; C_a[X2] = 81.4;
-
-	C_b = C_a;
-
-	C_c[Na] = 7.0; C_c[K] = 72.0; C_c[Cl] = 16.0;  // mM
-	C_c[X1] = 63.0; C_c[X2] = 142.0;
-
-	P_a[Na] = 100e-9; P_a[K] = 50e-9; P_a[Cl] = 0.0; // cm/second
-	P_a[X1] = 0.0; P_a[X2] = 0.0;
-
-	P_b[Na] = 20e-9; P_b[K] = 463e-9; P_b[Cl] = 541.0e-9; // cm/second
-	P_b[X1] = 0.0; P_b[X2] = 0.0;
-
-	P_j[Na] = 3e-9; P_j[K] = 3e-9; P_j[Cl] = 3.0e-9;  // cm/second
-	P_j[X1] = 0.0; P_j[X2] = 0.0;
-
-	sigma_a.assign(6, 1.0);
-	sigma_b = sigma_a;
-
-	z[Na] = 1.0; z[K] = 1.0; z[Cl] = -1.0; z[X1] = -1.0; z[X2] = 1.0;
-
 	Lp_a = 1e-12; Lp_b = 1e-11; // cm^3/(dyne second)
-
 	A_a = 1.8; A_b = 8.8; // cm^2/cm^2 tissue
 	V = 0.001; // cm^3/cm^2 tissue
 
@@ -219,12 +210,12 @@ void GeneralModel::calculateSoluteMembraneFluxes()
 	 * Apical membrane fluxes assumed to be entirely passive (eq 7)
 	 */
     if (debugLevel() > 99) std::cout << "apical membrane fluxes";
-    calculatePassiveFluxes(J_a, P_a, z, C_a, C_c, U_a);
+    calculatePassiveFluxes(mJ_a, mP_a, mZ, mC_a, mC_c, U_a);
 	/*
      * Basolateral membrane flux also passive
 	 */
     if (debugLevel() > 99) std::cout << "basolateral membrane fluxes";
-    calculatePassiveFluxes(J_b, P_b, z, C_c, C_b, U_b);
+    calculatePassiveFluxes(mJ_b, mP_b, mZ, mC_c, mC_b, U_b);
 }
 
 void GeneralModel::calculateSoluteParacellularFluxes()
@@ -232,13 +223,13 @@ void GeneralModel::calculateSoluteParacellularFluxes()
     /*
      * Paracellular fluxes assumed to be passive (assuming leaky or moderately tight epithelium.
      */
-    calculatePassiveFluxes(J_j, P_j, z, C_a, C_b, U_t);
+    calculatePassiveFluxes(mJ_j, mP_j, mZ, mC_a, mC_b, U_t);
 }
 
 void GeneralModel::compute_I_a()
 {
 	I_a = 0;
-    for (unsigned int i=0; i<J_a.size(); ++i) I_a += z[i] * J_a[i];
+    for (unsigned int i=0; i<mJ_a.size(); ++i) I_a += (*mZ[i]) * (*mJ_a[i]);
     if (debugLevel() > 99) std::cout << "pre-I_a = " << I_a;
 	I_a *= F * A_a;
 }
@@ -246,7 +237,7 @@ void GeneralModel::compute_I_a()
 void GeneralModel::compute_I_b()
 {
     I_b = 0;
-    for (unsigned int i=0; i<J_b.size(); ++i) I_b += z[i] * J_b[i];
+    for (unsigned int i=0; i<mJ_b.size(); ++i) I_b += (*mZ[i]) * (*mJ_b[i]);
     if (debugLevel() > 99) std::cout << "; pre-I_b = " << I_b << std::endl;
     I_b *= F * A_b;
 }
@@ -254,29 +245,29 @@ void GeneralModel::compute_I_b()
 void GeneralModel::compute_I_j()
 {
     I_j = 0;
-    for (unsigned int i=0; i<J_j.size(); ++i) I_j += z[i] * J_j[i];
+    for (unsigned int i=0; i<mJ_j.size(); ++i) I_j += (*mZ[i]) * (*mJ_j[i]);
     I_j *= F * A_a;
 }
 
-void GeneralModel::calculatePassiveFluxes(std::vector<double>& J, const std::vector<double>& P,
-                                                   const std::vector<double>& z, const std::vector<double>& C1,
-                                                   const std::vector<double>& C2, const double U)
+void GeneralModel::calculatePassiveFluxes(std::vector<double*>& J, const std::vector<double*>& P,
+                                                   const std::vector<double*>& z, const std::vector<double*>& C1,
+                                                   const std::vector<double*>& C2, const double U)
 {
     int i, N=J.size();
 
     for (i=0; i<N; i++)
     {
-        if (fabs(z[i]*U) > zeroTolerance)
+        if (fabs((*z[i])*U) > zeroTolerance)
         {
-            J[i] = P[i] * z[i] * U * (C1[i] - C2[i] * exp(-z[i] * U)) / (1.0 - exp(-z[i] * U));
-            if (debugLevel() > 99) std::cout << "; J[" << i << "] = " << J[i];
+            (*J[i]) = (*P[i]) * (*z[i]) * U * ((*C1[i]) - (*C2[i]) * exp(-(*z[i]) * U)) / (1.0 - exp(-(*z[i]) * U));
+            if (debugLevel() > 99) std::cout << "; J[" << i << "] = " << (*J[i]);
         }
         else
         {
             // as per my interpretation of footnote 4 of Latta paper, to avoid / by zero and given improved
             // accuracy of double vs float...
-            J[i] = P[i] * z[i] * (F / (R * T)) * (C1[i] - C2[i]);
-            if (debugLevel() > 99) std::cout << "; Japprox[" << i << "] = " << J[i];
+            (*J[i]) = (*P[i]) * (*z[i]) * (F / (R * T)) * ((*C1[i]) - (*C2[i]));
+            if (debugLevel() > 99) std::cout << "; Japprox[" << i << "] = " << (*J[i]);
         }
     }
     if (debugLevel() > 99) std::cout << std::endl;
@@ -289,10 +280,10 @@ void GeneralModel::printState(std::ostream& s, double &time)
     E_a = calcE(U_a);
     E_b = calcE(U_b);
     s << "\t" << E_t << "\t" << E_a << "\t" << E_b;
-    for (unsigned int i=0; i< C_c.size(); ++i) s << "\t" << C_c[i];
-    double JNa_net = J_a[Na] + J_j[Na];
-    double JK_net = J_a[K] + J_j[K];
-    s << "\t" << JNa_net << "\t" << JK_net << "\t" << I_t << "\t" << I_a << "\t" << I_b << "\t" << I_j;
+    //for (unsigned int i=0; i< C_c.size(); ++i) s << "\t" << C_c[i];
+    //double JNa_net = J_a[Na] + J_j[Na];
+    //double JK_net = J_a[K] + J_j[K];
+    //s << "\t" << JNa_net << "\t" << JK_net << "\t" << I_t << "\t" << I_a << "\t" << I_b << "\t" << I_j;
     s << std::endl;
 }
 
@@ -320,7 +311,7 @@ void GeneralModel::printStateHeader(std::ostream& s)
 
 std::vector<double> GeneralModel::calculateRHS(double time, int &errorFlag)
 {
-    std::vector<double> f(C_c.size() + 1); // number of species + cell volume
+    std::vector<double> f(mC_c.size() + 1); // number of species + cell volume
 
     if (debugLevel() > 1) std::cout << "Calculate RHS for time: " << time << std::endl;
 
@@ -356,9 +347,9 @@ std::vector<double> GeneralModel::calculateRHS(double time, int &errorFlag)
 
     // solutes
     calculateSoluteMembraneFluxes();
-    for (unsigned int i = 0; i < C_c.size(); ++i)
+    for (unsigned int i = 0; i < mC_c.size(); ++i)
     {
-        f[i+1] = (A_a * J_a[i] - A_b * J_b[i] - C_c[i] * f[0]) / V;
+        f[i+1] = (A_a * (*mJ_a[i]) - A_b * (*mJ_b[i]) - (*mC_c[i]) * f[0]) / V;
     }
     return f;
 }
@@ -366,10 +357,10 @@ std::vector<double> GeneralModel::calculateRHS(double time, int &errorFlag)
 void GeneralModel::calculateWaterFluxes()
 {
     Jw_a = Jw_b = 0;
-    for (unsigned int i = 0; i < C_c.size(); ++i)
+    for (unsigned int i = 0; i < mC_c.size(); ++i)
     {
-        Jw_a += sigma_a[i] * (C_c[i] - C_a[i]);
-        Jw_b += sigma_b[i] * (C_c[i] - C_b[i]);
+        Jw_a += (*mSigma_a[i]) * ((*mC_c[i]) - (*mC_a[i]));
+        Jw_b += (*mSigma_b[i]) * ((*mC_c[i]) - (*mC_b[i]));
     }
     Jw_a *= Lp_a * R * T;
     Jw_b *= Lp_b * R * T;
@@ -377,6 +368,7 @@ void GeneralModel::calculateWaterFluxes()
 
 void GeneralModel::initialiseSaltStepper()
 {
+#if 0
     // reset the model back to default conditions
     initialise();
     // and then set salt-stepper specific conditions
@@ -387,4 +379,17 @@ void GeneralModel::initialiseSaltStepper()
     C_a[X2] = C_b[X2] = 81.4; // [mM]
     P_a[Na] = P_a[K] = 3.0e-5; // [cm/sec]
     P_a[Cl] = 1.0e-5; // [cm/sec]
+#endif
+}
+
+int GeneralModel::addMolecule(const Molecule &molecule)
+{
+    if (mMolecules.count(molecule.typeId) > 0)
+    {
+        std::cerr << "Unable to add a molecule more than once: " << molecule.typeId << "; count: "
+                     << mMolecules.count(molecule.typeId) << std::endl;
+        return -1;
+    }
+    mMolecules[molecule.typeId] = molecule;
+    return 0;
 }

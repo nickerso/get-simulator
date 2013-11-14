@@ -47,7 +47,7 @@ Cvodes::Cvodes()
 
 int Cvodes::initialise(GeneralModel* model, double initialTime, double maxStep)
 {
-    int NEQ = model->C_c.size() + 1; // number of species + cell volume
+    int NEQ = model->mC_c.size() + 1; // number of species + cell volume
     realtype reltol, abstol;
     int flag;
     unsigned int i;
@@ -63,14 +63,14 @@ int Cvodes::initialise(GeneralModel* model, double initialTime, double maxStep)
 
     /* Initialize y */
     Ith(y,1) = model->V; // initial volume
-    for (i=0; i < model->C_c.size(); ++i) Ith(y, i+2) = model->C_c[i];
+    for (i=0; i < model->mC_c.size(); ++i) Ith(y, i+2) = *(model->mC_c[i]);
 
     /* Set the scalar relative tolerance */
     reltol = RTOL;
     abstol = ATOL; // could use a vector if needed
     Ith(abstolVector, 1) = abstol / 100.0; // tighter tolerance on volume which is several orders of magnitude
                                          // smaller than the concentrations
-    for (i=0; i < model->C_c.size(); ++i) Ith(abstolVector, i+2) = abstol;
+    for (i=0; i < model->mC_c.size(); ++i) Ith(abstolVector, i+2) = abstol;
 
     /* Call CVodeCreate to create the solver memory and specify the
    * Backward Differentiation Formula and the use of a Newton iteration */
@@ -150,7 +150,7 @@ static int f(realtype t, N_Vector y, N_Vector ydot, void *user_data)
     GeneralModel* model = static_cast<GeneralModel*>(user_data);
     // update state variables
     model->V = Ith(y,1);
-    for (unsigned int i=0; i < model->C_c.size(); ++i) model->C_c[i] = Ith(y, i+2);
+    for (unsigned int i=0; i < model->mC_c.size(); ++i) *(model->mC_c[i]) = Ith(y, i+2);
 
     int errorFlag = 0;
     std::vector<double> f = model->calculateRHS((double)t, errorFlag);

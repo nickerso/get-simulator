@@ -5,6 +5,7 @@
 #include <CellmlSimulator.hpp>
 
 #include "common.hpp"
+#include "molecule.hpp"
 #include "GeneralModel.hpp"
 #include "cvodes.hpp"
 #include "kinsol.hpp"
@@ -28,8 +29,41 @@ int SimulationEngineGet::setOutputVariables()
 
 int SimulationEngineGet::initialiseSimulation()
 {
-    GeneralModel model();
+    GeneralModel model;
     setDebugLevel(0);
+
+    // define our model
+    Molecule molecule;
+    // Cl - just change the defaults...
+    molecule.typeId = "http://cellml.sourceforge.net/ns/ion/Cl";
+    molecule.z = -1.0;
+    molecule.C_a = molecule.C_b = 102.0; molecule.C_c = 16.0;
+    molecule.P_a = 0.0; molecule.P_b = 541.0e-9; molecule.P_j = 3.0e-9;
+    model.addMolecule(molecule);
+    // Na - just change the defaults...
+    molecule.typeId = "http://cellml.sourceforge.net/ns/ion/Na";
+    molecule.z = 1.0;
+    molecule.C_a = molecule.C_b = 104.0; molecule.C_c = 7.0;
+    molecule.P_a = 100.0e-9; molecule.P_b = 20.0e-9; molecule.P_j = 3.0e-9;
+    model.addMolecule(molecule);
+    // K - just change the defaults...
+    molecule.typeId = "http://cellml.sourceforge.net/ns/ion/K";
+    molecule.z = 1.0;
+    molecule.C_a = molecule.C_b = 5.3; molecule.C_c = 72.0;
+    molecule.P_a = 50.0e-9; molecule.P_b = 463.0e-9; molecule.P_j = 3.0e-9;
+    model.addMolecule(molecule);
+    // X1 - just change the defaults...
+    molecule.typeId = "http://cellml.sourceforge.net/ns/ion/X1";
+    molecule.z = -1.0;
+    molecule.C_a = molecule.C_b = 7.3; molecule.C_c = 63.0;
+    molecule.P_a = 0.0; molecule.P_b = 0.0; molecule.P_j = 0.0;
+    model.addMolecule(molecule);
+    // Cl - just change the defaults...
+    molecule.typeId = "http://cellml.sourceforge.net/ns/ion/X2";
+    molecule.z = 1.0;
+    molecule.C_a = molecule.C_b = 81.4; molecule.C_c = 142.0;
+    molecule.P_a = 0.0; molecule.P_b = 0.0; molecule.P_j = 0.0;
+    model.addMolecule(molecule);
 
     // set up output
     std::ofstream output;
@@ -104,9 +138,9 @@ int SimulationEngineGet::initialiseSimulation()
     // dump out SS results to compare to table 2 in Latta et al paper.
     std::cout << "Steady state results\n"
               << "====================\n"
-              << "C_c[Na] = " << model.C_c[GeneralModel::Na]
+              /*<< "C_c[Na] = " << model.C_c[GeneralModel::Na]
               << "; C_c[K] = " << model.C_c[GeneralModel::K]
-              << "; C_c[Cl] = " << model.C_c[GeneralModel::Cl] << "\n"
+              << "; C_c[Cl] = " << model.C_c[GeneralModel::Cl] << "\n"*/
               << "E_t = " << model.E_t << "; E_a = " << model.E_a
               << "; E_b = " << model.E_b << "\n"
               << "V/V(t=0) = " << model.V / initialVolume << std::endl;

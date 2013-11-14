@@ -14,6 +14,9 @@
 #define GENERALMODEL_HPP_
 
 #include <vector>
+#include <map>
+
+#include "molecule.hpp"
 
 /**
  * This class defines a general epithelial transport model based on the Latta et al (1984)
@@ -24,6 +27,13 @@ class GeneralModel
 public:
     GeneralModel();
     ~GeneralModel();
+
+    /**
+     * @brief Add a new molecule to this instance of a epithelial cell model.
+     * @param molecule The molecule to add.
+     * @return zero on success.
+     */
+    int addMolecule(const Molecule& molecule);
 
 	/**
 	 * Initialise the model
@@ -58,9 +68,9 @@ public:
     /**
       * Generic method for evaluating passive fluxes.
       */
-    void calculatePassiveFluxes(std::vector<double>& J, const std::vector<double>& P,
-                                const std::vector<double>& z, const std::vector<double>& C1,
-                                const std::vector<double>& C2, const double U);
+    void calculatePassiveFluxes(std::vector<double *> &J, const std::vector<double *> &P,
+                                const std::vector<double *> &z, const std::vector<double *> &C1,
+                                const std::vector<double *> &C2, const double U);
 
     /**
       * Compute the water fluxes for the current state of the cell.
@@ -98,36 +108,9 @@ public:
     };
     enum ModelMode modelMode;
 
-	// Species indices
-	enum
-	{
-		Na = 0, K = 1, Cl = 2, X1 = 3, X2 = 4, X3 = 5
-	};
-
-	// Concentrations - intracellular (c); apical membrane (mucosal) (a);
-	//                  basolateral membrane (serosal) (b)
-	std::vector<double> C_c;
-	std::vector<double> C_a;
-	std::vector<double> C_b;
-
-	// permeabilities - paracellular pathway (j)
-	std::vector<double> P_a;
-	std::vector<double> P_b;
-	std::vector<double> P_j;
-
-	// valences
-	std::vector<double> z;
-
-	// reflection coefficients
-	std::vector<double> sigma_a;
-	std::vector<double> sigma_b;
-
 	// hydraulic conductances
 	double Lp_a;
 	double Lp_b;
-
-	// Na-K pump kinetic parameters
-	double K_Na, K_K, n_Na, n_K, Imax;
 
 	// Geometrical parameters
 	double A_a, A_b;
@@ -140,14 +123,20 @@ public:
 
 	// current values for various things
     double I_t, I_a, I_b, I_j; // currents
-    std::vector<double> J_a; // solute fluxes
-	std::vector<double> J_b;
-	std::vector<double> J_j;
-	std::vector<double> J_p; // Na-K pump flux
     double Jw_a, Jw_b; // water fluxes
 
     // the bounds to put on the membrane potentials for KINSOL
     double maximumPotentialValue, minimumPotentialValue;
+
+    // for convenience we keep track of these
+    std::vector<double*> mJ_a, mJ_b, mJ_j;
+    std::vector<double*> mC_a, mC_b, mC_c;
+    std::vector<double*> mP_a, mP_b, mP_j;
+    std::vector<double*> mSigma_a, mSigma_b;
+    std::vector<double*> mZ;
+
+private:
+    std::map<std::string, Molecule> mMolecules;
 };
 
 #endif /* GENERALMODEL_HPP_ */
