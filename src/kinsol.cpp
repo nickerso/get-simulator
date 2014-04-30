@@ -180,7 +180,7 @@ int solveOneVariable(GeneralModel* model, double minimuimValue, double maximumVa
     {
 		model->U_t = udata[0];
         int errorFlag;
-        model->solveOpenCircuitPotentials(errorFlag, true);
+        model->solveCurrentClampPotentials(errorFlag, true);
     }
 	else
     {
@@ -276,7 +276,7 @@ static int func(N_Vector u, N_Vector f, void *user_data)
 	{
 		// Open-circuit case (solving for E_t)
         data->model->U_t = udata[0];
-        fdata[0] = data->model->solveOpenCircuitPotentials(errorFlag);
+        fdata[0] = data->model->solveCurrentClampPotentials(errorFlag);
         if (errorFlag != 0)
         {
             std::cerr << "failure reported from solveForElectroneutrality" << std::endl;

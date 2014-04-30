@@ -69,15 +69,6 @@ void GeneralModel::initialise()
         mZ[j] = &(m.z);
     }
 
-	// data from Table 1 in Latta et al (1984)
-	Lp_a = 1e-12; Lp_b = 1e-11; // cm^3/(dyne second)
-	A_a = 1.8; A_b = 8.8; // cm^2/cm^2 tissue
-	V = 0.001; // cm^3/cm^2 tissue
-
-	// initial guesses for membrane potentials
-    E_a = -20.0;
-    E_b = -60.0;
-    E_t = -40.0;
     U_a = calcU(E_a);
     U_b = calcU(E_b);
     U_t = calcU(E_t);
@@ -88,7 +79,7 @@ void GeneralModel::initialise()
               << maximumPotentialValue << std::endl;
 }
 
-double GeneralModel::solveOpenCircuitPotentials(int& errorFlag, const bool updateOnly)
+double GeneralModel::solveCurrentClampPotentials(int& errorFlag, const bool updateOnly)
 {
     errorFlag = 0;
 	/**

@@ -14,17 +14,51 @@
 
 SimulationEngineGet::SimulationEngineGet()
 {
+    mCsim = new CellmlSimulator();
 }
 
 SimulationEngineGet::~SimulationEngineGet()
 {
-    // nothing to do?
+    if (mCsim) delete mCsim;
 }
 
-int SimulationEngineGet::setOutputVariables()
+int SimulationEngineGet::loadModel(const std::string& modelUrl)
 {
-    // FIXME: not implemented yet
+    std::string flattenedModel = mCsim->serialiseCellmlFromUrl(modelUrl);
+    if (flattenedModel == "")
+    {
+        std::cerr << "Error serializing model: " << modelUrl << std::endl;
+        return -1;
+    }
+    if (mCsim->loadModelString(flattenedModel) != 0)
+    {
+        std::cerr << "Error loading model string: " << flattenedModel.c_str() << std::endl;
+        return -2;
+    }
+    // create the default simulation definition
+    if (mCsim->createSimulationDefinition() != 0)
+    {
+        std::cerr <<"Error creating default simulation definition." << std::endl;
+        return -3;
+    }
     return 0;
+}
+
+int SimulationEngineGet::addOutputVariable(const MyData &data, int columnIndex)
+{
+    int numberOfErrors = 0;
+    std::string variableId = mCsim->mapXpathToVariableId(data.target, data.namespaces);
+    if (variableId.length() > 0)
+    {
+        std::cout << "\t\tAdding output variable: '" << variableId << "'" << std::endl;
+        mCsim->addOutputVariable(variableId, columnIndex);
+    }
+    else
+    {
+        std::cerr << "Unable to map output variable target to a variable in the model: " << data.target << std::endl;
+        ++numberOfErrors;
+    }
+    return numberOfErrors;
 }
 
 int SimulationEngineGet::initialiseSimulation()
@@ -64,6 +98,17 @@ int SimulationEngineGet::initialiseSimulation()
     molecule.C_a = molecule.C_b = 81.4; molecule.C_c = 142.0;
     molecule.P_a = 0.0; molecule.P_b = 0.0; molecule.P_j = 0.0;
     model.addMolecule(molecule);
+
+    // cell parameters
+    // data from Table 1 in Latta et al (1984)
+    model.Lp_a = 1e-12; model.Lp_b = 1e-11; // cm^3/(dyne second)
+    model.A_a = 1.8; model.A_b = 8.8; // cm^2/cm^2 tissue
+    model.V = 0.001; // cm^3/cm^2 tissue
+
+    // initial guesses for membrane potentials
+    model.E_a = -20.0;
+    model.E_b = -60.0;
+    model.E_t = -40.0;
 
     // set up output
     std::ofstream output;

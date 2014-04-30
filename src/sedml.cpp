@@ -98,7 +98,20 @@ public:
         {
             std::cout << "\trunning simulation task using GET..." << std::endl;
             SimulationEngineGet get;
-            get.setOutputVariables();
+            get.loadModel(model.source);
+            int columnIndex = 1;
+            for (auto di = dataSets.begin(); di != dataSets.end(); ++di, ++columnIndex)
+            {
+                const MyData& d = di->second;
+                // we only want datasets relevant to this task
+                if (d.taskReference == this->id)
+                {
+                    outputVariables.push_back(d.id);
+                    std::cout << "\tAdding dataset: " << d.id.c_str() << "; to the outputs for this task."
+                              << std::endl;
+                    get.addOutputVariable(d, columnIndex);
+                }
+            }
             get.initialiseSimulation();
             get.getOutputValues();
         }

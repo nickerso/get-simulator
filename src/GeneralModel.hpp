@@ -46,12 +46,16 @@ public:
     void initialiseSaltStepper();
 
 	/**
-	 * Solve for electroneutrality in the open-circuit case (fig 4 in Latta paper).
+     * Solve for electroneutrality in the current clamp case (fig 4 in Latta paper).
+     *
+     * Here we specify I_t and solve for E_t, E_a (and E_b). Open circuit case is when I_t = 0.
 	 */
-    double solveOpenCircuitPotentials(int& errorFlag, const bool updateOnly = false);
+    double solveCurrentClampPotentials(int& errorFlag, const bool updateOnly = false);
 
 	/**
 	 * Solve for electroneutrality in the voltage-clamp case (fig 3 in Latta paper).
+     *
+     * Here we specify E_t and solve for E_a and E_b (E_a is the solution variable in KINSOL).
 	 */
     double solveVoltageClampPotentials(const bool updateOnly = false);
 
