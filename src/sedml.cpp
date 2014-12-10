@@ -3,6 +3,8 @@
 #include <vector>
 #include <map>
 
+#include <sbml/SBMLTypes.h>
+
 #include "utils.hpp"
 #include "sedml.hpp"
 #include "dataset.hpp"
