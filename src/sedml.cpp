@@ -177,6 +177,7 @@ public:
                 SedBase* current = v;
                 while (current)
                 {
+                    // FIXME: this only ever returns the SED-ML namespace(s), not the extra (cellml) namesapces
                     const XMLNamespaces* nss = current->getNamespaces();
                     if (nss)
                     {
@@ -192,6 +193,9 @@ public:
                     }
                     current = current->getParentSedObject();
                 }
+                // due to above FIXME, need to add in the cellml namespaces to use in resolving xpath expressions.
+                // FIXME: for now this restricts to CellML 1.1 namespace
+                d.namespaces["cellml"] = "http://www.cellml.org/cellml/1.1#";
                 std::cout << "\t\tVariable " << d.id.c_str() << ": target=" << d.target.c_str()
                      << "; task=" << d.taskReference.c_str() << std::endl;
                 printStringMap(d.namespaces);
