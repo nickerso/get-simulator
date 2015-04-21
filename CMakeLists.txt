@@ -4,7 +4,7 @@ PROJECT(get-simulator-sedml)
 cmake_minimum_required(VERSION 2.8)
 
 # Add in the directory with the FindCellML module
-SET(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${get-simulator_SOURCE_DIR})
+SET(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${get-simulator-sedml_SOURCE_DIR})
 
 IF(WIN32)
     SET(CMAKE_FIND_LIBRARY_SUFFIXES .lib .a ${CMAKE_FIND_LIBRARY_SUFFIXES})
@@ -62,6 +62,15 @@ SET(get_sedml_SRCS
   src/get-sed-ml-client.cpp
   ${COMMON_SRCS}
 )
+
+
+###
+## http://www.cmake.org/Wiki/CMake_RPATH_handling
+###
+
+# use, i.e. don't skip the full RPATH for the build tree
+SET(CMAKE_SKIP_BUILD_RPATH  FALSE)
+SET(CMAKE_MACOSX_RPATH  TRUE)
 
 set(GET_EXECUTABLE_NAME "get-simulator")
 ADD_EXECUTABLE(${GET_EXECUTABLE_NAME} ${get_SRCS})
