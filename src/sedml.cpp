@@ -276,6 +276,7 @@ public:
     int resolveRepeatedTask(MyTask& repeat, const SedRepeatedTask* sedRepeat)
     {
         int numberOfErrors = 0;
+        repeat.isRepeatedTask = true;
         repeat.resetModel = sedRepeat->getResetModel();
         repeat.masterRangeId = sedRepeat->getRangeId();
 
@@ -350,36 +351,146 @@ public:
         return numberOfErrors;
     }
 
+    int resolveModel(const SedModel* model, const std::string& baseUri)
+    {
+        int numberOfErrors = 0;
+        MyModel m;
+        m.id = model->getId();
+        if (models.count(m.id) == 0)
+        {
+            std::cout << "Adding model: " << m.id.c_str() << " to the execution manifest" << std::endl;
+            std::string language = model->getLanguage();
+            // we can only handle CellML models.
+            if (language.find("cellml"))
+            {
+                m.name = model->getName(); // empty string is ok
+                // FIXME: assuming here that the source is always a cellml model, but could be a reference to another model? or would that be a modelReference?
+                m.source = buildAbsoluteUri(model->getSource(), baseUri);
+                std::cout << "\tModel source: " << model->getSource().c_str() << std::endl;
+                std::cout << "\tModel URL: " << m.source.c_str() << std::endl;
+                models[m.id] = m;
+            }
+            else
+            {
+                std::cerr << "Sorry, we can only handle CellML models." << std::endl;
+                ++numberOfErrors;
+            }
+        }
+        else std::cout << "Model (" << m.id.c_str() << ") is already in the execution manifest" << std::endl;
+        return numberOfErrors;
+    }
+
+    int resolveRepeatedTaskModels(const MyTask& task, const SedDocument* doc, const std::string& baseUri)
+    {
+        int numberOfErrors = 0;
+        std::cout << "resolving model(s) for repeated task: " << task.id << std::endl;
+        for (const MyTask& st: task.subTasks)
+        {
+            if (st.isRepeatedTask) numberOfErrors += resolveRepeatedTaskModels(st, doc, baseUri);
+            else
+            {
+                // normal task
+                const SedModel* model = doc->getModel(st.modelReference);
+                numberOfErrors += resolveModel(model, baseUri);
+            }
+        }
+        return numberOfErrors;
+    }
+
     int resolveModels(SedDocument* doc, const std::string& baseUri)
     {
         int numberOfErrors = 0;
         for (auto i = tasks.begin(); i != tasks.end(); ++i)
         {
             MyTask& task = i->second;
-            SedModel* model = doc->getModel(task.modelReference);
-            MyModel m;
-            m.id = model->getId();
-            if (models.count(m.id) == 0)
+            std::cout << "resolving model(s) for task: " << task.id << std::endl;
+            if (task.isRepeatedTask) numberOfErrors += resolveRepeatedTaskModels(task, doc, baseUri);
+            else
             {
-                std::cout << "Adding model: " << m.id.c_str() << " to the execution manifest" << std::endl;
-                std::string language = model->getLanguage();
-                // we can only handle CellML models.
-                if (language.find("cellml"))
+                SedModel* model = doc->getModel(task.modelReference);
+                numberOfErrors += resolveModel(model, baseUri);
+            }
+        }
+        return numberOfErrors;
+    }
+
+    int resolveSimulation(const SedSimulation* simulation)
+    {
+        int numberOfErrors = 0;
+        if (simulation->getTypeCode() == SEDML_SIMULATION_UNIFORMTIMECOURSE)
+        {
+            MySimulation s;
+            s.id = simulation->getId();
+            if (simulations.count(s.id) == 0)
+            {
+                std::cout << "Adding simulation: " << s.id.c_str() << " to the execution manifest" << std::endl;
+                const SedUniformTimeCourse* tc = static_cast<const SedUniformTimeCourse*>(simulation);
+                const SedAlgorithm* alg = tc->getAlgorithm();
+                std::string kisaoId = alg->getKisaoID();
+                if (kisaoId == "KISAO:0000019")
                 {
-                    m.name = model->getName(); // empty string is ok
-                    // FIXME: assuming here that the source is always a cellml model, but could be a reference to another model? or would that be a modelReference?
-                    m.source = buildAbsoluteUri(model->getSource(), baseUri);
-                    std::cout << "\tModel source: " << model->getSource().c_str() << std::endl;
-                    std::cout << "\tModel URL: " << m.source.c_str() << std::endl;
-                    models[m.id] = m;
+                    // CVODE integration, we can handle that with CSim
+                    s.setSimulationTypeCsim();
+                    s.initialTime = tc->getInitialTime();
+                    s.startTime = tc->getOutputStartTime();
+                    s.endTime = tc->getOutputEndTime();
+                    s.numberOfPoints = tc->getNumberOfPoints();
+                    simulations[s.id] = s;
                 }
-                else
+                else if ((kisaoId == "KISAO:0000000") && alg->isSetAnnotation())
                 {
-                    std::cerr << "Sorry, we can only handle CellML models." << std::endl;
-                    ++numberOfErrors;
+                    // FIXME: this all needs to be namespace aware?!
+                    // need to check the annotation to see what to do.
+                    XMLNode* annotation = alg->getAnnotation();
+                    if (annotation->getNumChildren() != 1)
+                    {
+                        std::cerr << "Can't handle custom algorithm:\n";
+                        std::cerr << annotation->toXMLString() << std::endl;
+                        ++numberOfErrors;
+                    }
+                    else
+                    {
+                        XMLNode& csimGetSimulator = annotation->getChild(0);
+                        if (!csimGetSimulator.hasAttr("method"))
+                        {
+                            std::cerr << "Missing method attribute on:\n"
+                                      << csimGetSimulator.toXMLString() << std::endl;
+                            ++numberOfErrors;
+                        }
+                        else
+                        {
+                            s.setSimulationTypeGet(csimGetSimulator.getAttrValue("method"));
+                            s.initialTime = tc->getInitialTime();
+                            s.startTime = tc->getOutputStartTime();
+                            s.endTime = tc->getOutputEndTime();
+                            s.numberOfPoints = tc->getNumberOfPoints();
+                            simulations[s.id] = s;
+                        }
+                    }
                 }
             }
-            else std::cout << "Model (" << m.id.c_str() << ") is already in the execution manifest" << std::endl;
+            else std::cout << "Simulation (" << s.id.c_str() << ") already in execution manifest." << std::endl;
+        }
+        else
+        {
+            std::cerr << "Unable to handle simulations that are not uniform time courses" << std::endl;
+            ++numberOfErrors;
+        }
+        return numberOfErrors;
+    }
+
+    int resolveRepeatedTaskSimulations(const MyTask& task, const SedDocument* doc)
+    {
+        int numberOfErrors = 0;
+        for (const MyTask& st: task.subTasks)
+        {
+            if (st.isRepeatedTask) numberOfErrors += resolveRepeatedTaskSimulations(st, doc);
+            else
+            {
+                // normal task
+                const SedSimulation* simulation = doc->getSimulation(st.simulationReference);
+                numberOfErrors += resolveSimulation(simulation);
+            }
         }
         return numberOfErrors;
     }
@@ -390,65 +501,15 @@ public:
         for (auto i = tasks.begin(); i != tasks.end(); ++i)
         {
             MyTask& task = i->second;
-            SedSimulation* simulation = doc->getSimulation(task.simulationReference);
-            if (simulation->getTypeCode() == SEDML_SIMULATION_UNIFORMTIMECOURSE)
+            if (task.isRepeatedTask)
             {
-                MySimulation s;
-                s.id = simulation->getId();
-                if (simulations.count(s.id) == 0)
-                {
-                    std::cout << "Adding simulation: " << s.id.c_str() << " to the execution manifest" << std::endl;
-                    SedUniformTimeCourse* tc = static_cast<SedUniformTimeCourse*>(simulation);
-                    const SedAlgorithm* alg = tc->getAlgorithm();
-                    std::string kisaoId = alg->getKisaoID();
-                    if (kisaoId == "KISAO:0000019")
-                    {
-                        // CVODE integration, we can handle that with CSim
-                        s.setSimulationTypeCsim();
-                        s.initialTime = tc->getInitialTime();
-                        s.startTime = tc->getOutputStartTime();
-                        s.endTime = tc->getOutputEndTime();
-                        s.numberOfPoints = tc->getNumberOfPoints();
-                        simulations[s.id] = s;
-                    }
-                    else if ((kisaoId == "KISAO:0000000") && alg->isSetAnnotation())
-                    {
-                        // FIXME: this all needs to be namespace aware?!
-                        // need to check the annotation to see what to do.
-                        XMLNode* annotation = alg->getAnnotation();
-                        if (annotation->getNumChildren() != 1)
-                        {
-                            std::cerr << "Can't handle custom algorithm:\n";
-                            std::cerr << annotation->toXMLString() << std::endl;
-                            ++numberOfErrors;
-                        }
-                        else
-                        {
-                            XMLNode& csimGetSimulator = annotation->getChild(0);
-                            if (!csimGetSimulator.hasAttr("method"))
-                            {
-                                std::cerr << "Missing method attribute on:\n"
-                                          << csimGetSimulator.toXMLString() << std::endl;
-                                ++numberOfErrors;
-                            }
-                            else
-                            {
-                                s.setSimulationTypeGet(csimGetSimulator.getAttrValue("method"));
-                                s.initialTime = tc->getInitialTime();
-                                s.startTime = tc->getOutputStartTime();
-                                s.endTime = tc->getOutputEndTime();
-                                s.numberOfPoints = tc->getNumberOfPoints();
-                                simulations[s.id] = s;
-                            }
-                        }
-                    }
-                }
-                else std::cout << "Simulation (" << s.id.c_str() << ") already in execution manifest." << std::endl;
+                numberOfErrors += resolveRepeatedTaskSimulations(task, doc);
             }
             else
             {
-                std::cerr << "Unable to handle simulations that are not uniform time courses" << std::endl;
-                ++numberOfErrors;
+                // normal task
+                SedSimulation* simulation = doc->getSimulation(task.simulationReference);
+                numberOfErrors += resolveSimulation(simulation);
             }
         }
         return numberOfErrors;
@@ -513,8 +574,11 @@ public:
         {
             numberOfErrors += i->resolveDataSets(doc);
             numberOfErrors += i->resolveTasks(doc);
+            std::cout << "got to here 123" << std::endl;
             numberOfErrors += i->resolveModels(doc, baseUri);
+            std::cout << "got to here 456" << std::endl;
             numberOfErrors += i->resolveSimulations(doc);
+            std::cout << "got to here 789" << std::endl;
         }
         return numberOfErrors;
     }
