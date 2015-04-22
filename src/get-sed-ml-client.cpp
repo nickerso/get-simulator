@@ -19,7 +19,8 @@
 
 static void usage(const char* progName)
 {
-    std::cerr << "Usage: " << progName << " <SED-ML document URL>" << std::endl;
+    std::cerr << "Usage: " << progName << " <SED-ML document URL> [report results file]" << std::endl;
+    std::cerr << "\tWill output results to stdout if no report results file given" << std::endl;
 }
 
 int main(int argc, char* argv[])
@@ -58,6 +59,16 @@ int main(int argc, char* argv[])
         std::cerr << "There were some errors executing the simulation tasks." << std::endl;
         return -3;
     }
+
+    std::fstream fs;
+    if (argc > 2) fs.open(argv[2], std::fstream::out);
+    // and generate the reports
+    if (sed.serialiseReports(fs.is_open() ? fs : std::cout) != 0)
+    {
+        std::cerr << "There were some errors serialising the reports." << std::endl;
+        return -4;
+    }
+    if (fs.is_open()) fs.close();
 
     //sed.checkBob();
 

@@ -41,11 +41,18 @@ public:
      */
     int execute();
 
+    /**
+     * @brief Serialise the reports that we know about, presumably after the simulation tasks have been executed.
+     * @return zero on success.
+     */
+    int serialiseReports(std::ostream&);
+
     int checkBob();
 
 private:
     SedDocument* mSed;
     MyReportList* mReports;
+    bool mExecutionPerformed;
 };
 
 #endif // SEDML_HPP

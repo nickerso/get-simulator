@@ -52,13 +52,16 @@ public:
             SimulationEngineCsim csim;
             csim.loadModel(model.source);
             int columnIndex = 1;
+            // keep track of the data arrays to store the simulation results
+            std::vector<std::vector<double>*> results;
             for (auto di = dataSets.begin(); di != dataSets.end(); ++di, ++columnIndex)
             {
-                const MyData& d = di->second;
+                MyData& d = di->second;
                 // we only want datasets relevant to this task
                 if (d.taskReference == this->id)
                 {
                     outputVariables.push_back(d.id);
+                    results.push_back(&(d.data));
                     std::cout << "\tAdding dataset: " << d.id.c_str() << "; to the outputs for this task."
                               << std::endl;
                     csim.addOutputVariable(d, columnIndex);
@@ -70,24 +73,30 @@ public:
                 std::cerr << "Error initialising simulation?" << std::endl;
                 return -1;
             }
-            std::vector<double> results = csim.getOutputValues();
-            std::cout << "Simulation results:\n";
-            for (auto i = outputVariables.begin(); i != outputVariables.end(); ++i)
-                std::cout << *i << "\t";
-            std::cout << std::endl;
-            for (auto j = results.begin(); j != results.end(); ++j)
-                std::cout << *j << "\t";
-            std::cout << std::endl;
+            std::vector<double> stepResults = csim.getOutputValues();
+            //std::cout << "Simulation results:\n";
+            //for (auto i = outputVariables.begin(); i != outputVariables.end(); ++i)
+            //    std::cout << *i << "\t";
+            //std::cout << std::endl;
+            //for (auto j = stepResults.begin(); j != stepResults.end(); ++j)
+            //    std::cout << *j << "\t";
+            //std::cout << std::endl;
+            int r = 0;
+            for (auto j = stepResults.begin(); j != stepResults.end(); ++j, ++r)
+                results[r]->push_back(*j);
             double dt = (simulation.endTime - simulation.startTime) / simulation.numberOfPoints;
             double time = simulation.startTime;
             for (int i = 1; i <= simulation.numberOfPoints; ++i, time += dt)
             {
                 if (csim.simulateModelOneStep(dt) == 0)
                 {
-                    results = csim.getOutputValues();
-                    for (auto j = results.begin(); j != results.end(); ++j)
-                        std::cout << *j << "\t";
-                    std::cout << std::endl;
+                    stepResults = csim.getOutputValues();
+                    //for (auto j = results.begin(); j != results.end(); ++j)
+                    //    std::cout << *j << "\t";
+                    //std::cout << std::endl;
+                    r = 0;
+                    for (auto j = stepResults.begin(); j != stepResults.end(); ++j, ++r)
+                        results[r]->push_back(*j);
                 }
                 else
                 {
@@ -177,7 +186,6 @@ public:
                 SedBase* current = v;
                 while (current)
                 {
-                    // FIXME: this only ever returns the SED-ML namespace(s), not the extra (cellml) namesapces
                     const XMLNamespaces* nss = current->getNamespaces();
                     if (nss)
                     {
@@ -193,9 +201,6 @@ public:
                     }
                     current = current->getParentSedObject();
                 }
-                // due to above FIXME, need to add in the cellml namespaces to use in resolving xpath expressions.
-                // FIXME: for now this restricts to CellML 1.1 namespace
-                d.namespaces["cellml"] = "http://www.cellml.org/cellml/1.1#";
                 std::cout << "\t\tVariable " << d.id.c_str() << ": target=" << d.target.c_str()
                      << "; task=" << d.taskReference.c_str() << std::endl;
                 printStringMap(d.namespaces);
@@ -342,6 +347,36 @@ public:
         return numberOfErrors;
     }
 
+    int serialise(std::ostream& os)
+    {
+        int numberOfErrors = 0;
+        int first = 0, minDataSize = -1;
+        for (const auto& ds: dataSets)
+        {
+            MyData d = ds.second;
+            if (first) os << ",";
+            else first = 1;
+            os << d.label;
+            int dataLength = d.data.size();
+            if ((minDataSize < 0) || (dataLength < minDataSize)) minDataSize = dataLength;
+        }
+        os << std::endl;
+        // FIXME: for now assume that all datasets have the same number of results?
+        for (int i = 0; i < minDataSize; ++i)
+        {
+            first = 0;
+            for (const auto& ds: dataSets)
+            {
+                MyData d = ds.second;
+                if (first) os << ",";
+                else first = 1;
+                os << d.data[i];
+            }
+            os << std::endl;
+        }
+        return numberOfErrors;
+    }
+
     const SedReport* sed;
     std::string id;
     DataSet dataSets;
@@ -375,9 +410,19 @@ public:
         }
         return numberOfErrors;
     }
+
+    int serialise(std::ostream& os)
+    {
+        int numberOfErrors = 0;
+        for (auto i = begin(); i != end(); ++i)
+        {
+            numberOfErrors += i->serialise(os);
+        }
+        return numberOfErrors;
+    }
 };
 
-Sedml::Sedml() : mSed(NULL), mReports(NULL)
+Sedml::Sedml() : mSed(NULL), mReports(NULL), mExecutionPerformed(false)
 {
 }
 
@@ -457,6 +502,22 @@ int Sedml::execute()
 {
     int numberOfErrors = 0;
     if (mReports) numberOfErrors = mReports->execute();
+    mExecutionPerformed = true;
+    return numberOfErrors;
+}
+
+int Sedml::serialiseReports(std::ostream& os)
+{
+    int numberOfErrors = 0;
+    if (mExecutionPerformed)
+    {
+        if (mReports) numberOfErrors += mReports->serialise(os);
+    }
+    else
+    {
+        std::cerr << "You need to execute the simulation tasks before serialising the reports?" << std::endl;
+        numberOfErrors++;
+    }
     return numberOfErrors;
 }
 
