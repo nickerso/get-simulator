@@ -60,6 +60,28 @@ public:
                 DataSet& dataSets)
     {
         int numberOfErrors = 0;
+        if (isRepeatedTask) numberOfErrors = executeRepeated(models, simulations, dataSets);
+        else numberOfErrors = executeSingle(models, simulations, dataSets);
+        return numberOfErrors;
+    }
+
+    int executeRepeated(std::map<std::string, MyModel>& models, std::map<std::string, MySimulation>& simulations,
+                        DataSet& dataSets)
+    {
+        int numberOfErrors = 0;
+        // FIXME: a quick and dirty initial implementation of repeated tasks where we have a single range to iterate over
+        MyRange r = ranges[masterRangeId];
+        for (double rangeValue: r.rangeData)
+        {
+            std::cout << "Execute repeat with range value: " << rangeValue << std::endl;
+        }
+        return numberOfErrors;
+    }
+
+    int executeSingle(std::map<std::string, MyModel>& models, std::map<std::string, MySimulation>& simulations,
+                      DataSet& dataSets)
+    {
+        int numberOfErrors = 0;
         std::cout << "\n\nExecuting: " << id.c_str() << std::endl;
         std::cout << "\tsimulation = " << simulationReference.c_str() << std::endl;
         std::cout << "\tmodel = " << modelReference.c_str() << std::endl;
@@ -161,7 +183,7 @@ public:
     bool isRepeatedTask;
     bool resetModel;
     std::string masterRangeId;
-    std::vector<MyRange> ranges;
+    std::map<std::string, MyRange> ranges;
     std::vector<MyTask> subTasks;
     std::vector<MySetValueChange> setValueChanges;
 };
@@ -296,7 +318,7 @@ public:
               MyRange range;
               range.id = vrange->getId();
               range.rangeData = std::vector<double>(vrange->getValues());
-              repeat.ranges.push_back(range);
+              repeat.ranges[range.id] = range;
           }
           else if (urange != NULL)
           {
@@ -319,7 +341,7 @@ public:
                       double value = start + i * step;
                       range.rangeData.push_back(value);
                   }
-                  repeat.ranges.push_back(range);
+                  repeat.ranges[range.id] = range;
               }
           }
         }
@@ -364,7 +386,8 @@ public:
             if (language.find("cellml"))
             {
                 m.name = model->getName(); // empty string is ok
-                // FIXME: assuming here that the source is always a cellml model, but could be a reference to another model? or would that be a modelReference?
+                // FIXME: assuming here that the source is always a cellml model, but could be a reference to
+                // another model? or would that be a modelReference?
                 m.source = buildAbsoluteUri(model->getSource(), baseUri);
                 std::cout << "\tModel source: " << model->getSource().c_str() << std::endl;
                 std::cout << "\tModel URL: " << m.source.c_str() << std::endl;
