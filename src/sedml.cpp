@@ -33,9 +33,29 @@ static std::string nonEssentialString()
     return value;
 }
 
+class MyRange
+{
+public:
+    std::string id;
+    std::vector<double> rangeData;
+};
+
+class MySetValueChange
+{
+public:
+    std::string rangeId;
+    std::string targetXpath;
+    std::string modelReference;
+};
+
 class MyTask
 {
 public:
+    MyTask()
+    {
+        isRepeatedTask = false;
+    }
+
     int execute(std::map<std::string, MyModel>& models, std::map<std::string, MySimulation>& simulations,
                 DataSet& dataSets)
     {
@@ -138,6 +158,12 @@ public:
     std::string name;
     std::string modelReference;
     std::string simulationReference;
+    bool isRepeatedTask;
+    bool resetModel;
+    std::string masterRangeId;
+    std::vector<MyRange> ranges;
+    std::vector<MyTask> subTasks;
+    std::vector<MySetValueChange> setValueChanges;
 };
 
 
@@ -222,12 +248,104 @@ public:
             if (tasks.count(t.id) == 0)
             {
                 std::cout << "Adding task: " << t.id.c_str() << " to the execution manifest" << std::endl;
-                t.name = task->getName();
-                t.modelReference = task->getModelReference();
-                t.simulationReference = task->getSimulationReference();
+                resolveTask(t, task);
                 tasks[t.id] = t;
             }
             else std::cout << "Task (" << t.id.c_str() << ") already in the execution manifest" << std::endl;
+        }
+        return numberOfErrors;
+    }
+
+    int resolveTask(MyTask& t, const SedTask* task)
+    {
+        int numberOfErrors = 0;
+        const SedRepeatedTask* repeat = dynamic_cast<const SedRepeatedTask*>(task);
+        if (repeat != NULL)
+        {
+            numberOfErrors += resolveRepeatedTask(t, repeat);
+        }
+        else
+        {
+            t.name = task->getName();
+            t.modelReference = task->getModelReference();
+            t.simulationReference = task->getSimulationReference();
+        }
+        return numberOfErrors;
+    }
+
+    int resolveRepeatedTask(MyTask& repeat, const SedRepeatedTask* sedRepeat)
+    {
+        int numberOfErrors = 0;
+        repeat.resetModel = sedRepeat->getResetModel();
+        repeat.masterRangeId = sedRepeat->getRangeId();
+
+        for (unsigned int i = 0; i < sedRepeat->getNumRanges(); ++i)
+        {
+          const SedRange* current = sedRepeat->getRange(i);
+          const SedFunctionalRange* functional = dynamic_cast<const SedFunctionalRange*>(current);
+          const SedVectorRange* vrange = dynamic_cast<const SedVectorRange*>(current);
+          const SedUniformRange* urange = dynamic_cast<const SedUniformRange*>(current);
+          if (functional != NULL)
+          {
+              numberOfErrors++;
+              std::cerr << "Functional ranges not yet supported";
+          }
+          else if (vrange != NULL)
+          {
+              MyRange range;
+              range.id = vrange->getId();
+              range.rangeData = std::vector<double>(vrange->getValues());
+              repeat.ranges.push_back(range);
+          }
+          else if (urange != NULL)
+          {
+              MyRange range;
+              range.id = urange->getId();
+              std::string t = urange->getType();
+              if (t == "log")
+              {
+                  numberOfErrors++;
+                  std::cerr << "Uniform ranges of type 'log' are not yet supported" << std::endl;
+              }
+              else
+              {
+                  double start = urange->getStart();
+                  double end = urange->getEnd();
+                  double n = urange->getNumberOfPoints();
+                  double step = (end - start) / n;
+                  for (int i = 0; i <= n; ++i)
+                  {
+                      double value = start + i * step;
+                      range.rangeData.push_back(value);
+                  }
+                  repeat.ranges.push_back(range);
+              }
+          }
+        }
+
+        for (unsigned int i = 0; i < sedRepeat->getNumTaskChanges(); ++i)
+        {
+          const SedSetValue* current = sedRepeat->getTaskChange(i);
+          // FIXME: for now assume that if a range attribute is present we simply want to assign the current range value
+          // to the given target. Will ignore the math.
+          MySetValueChange vc;
+          vc.rangeId = current->getRange();
+          vc.modelReference = current->getModelReference();
+          vc.targetXpath = current->getTarget();
+        }
+        for (unsigned int i = 0; i < sedRepeat->getNumSubTasks(); ++i)
+        {
+          const SedSubTask* current = sedRepeat->getSubTask(i);
+          const SedTask* task = sedRepeat->getSedDocument()->getTask(current->getTask());
+          MyTask st;
+          st.id = task->getId();
+          std::cout << "Adding sub task: " << st.id.c_str() << " to the execution manifest" << std::endl;
+          resolveTask(st, task);
+          if (current->isSetOrder())
+          {
+              std::cerr << "\n\n****** Sorry, specifying the order is not yet supported and we ignore it\n" << std::endl;
+          }
+          repeat.subTasks.push_back(st);
         }
         return numberOfErrors;
     }
