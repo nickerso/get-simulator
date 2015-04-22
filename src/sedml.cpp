@@ -262,6 +262,7 @@ public:
         const SedRepeatedTask* repeat = dynamic_cast<const SedRepeatedTask*>(task);
         if (repeat != NULL)
         {
+            t.isRepeatedTask = true;
             numberOfErrors += resolveRepeatedTask(t, repeat);
         }
         else
@@ -276,7 +277,6 @@ public:
     int resolveRepeatedTask(MyTask& repeat, const SedRepeatedTask* sedRepeat)
     {
         int numberOfErrors = 0;
-        repeat.isRepeatedTask = true;
         repeat.resetModel = sedRepeat->getResetModel();
         repeat.masterRangeId = sedRepeat->getRangeId();
 
@@ -383,7 +383,6 @@ public:
     int resolveRepeatedTaskModels(const MyTask& task, const SedDocument* doc, const std::string& baseUri)
     {
         int numberOfErrors = 0;
-        std::cout << "resolving model(s) for repeated task: " << task.id << std::endl;
         for (const MyTask& st: task.subTasks)
         {
             if (st.isRepeatedTask) numberOfErrors += resolveRepeatedTaskModels(st, doc, baseUri);
@@ -403,7 +402,6 @@ public:
         for (auto i = tasks.begin(); i != tasks.end(); ++i)
         {
             MyTask& task = i->second;
-            std::cout << "resolving model(s) for task: " << task.id << std::endl;
             if (task.isRepeatedTask) numberOfErrors += resolveRepeatedTaskModels(task, doc, baseUri);
             else
             {
@@ -574,11 +572,8 @@ public:
         {
             numberOfErrors += i->resolveDataSets(doc);
             numberOfErrors += i->resolveTasks(doc);
-            std::cout << "got to here 123" << std::endl;
             numberOfErrors += i->resolveModels(doc, baseUri);
-            std::cout << "got to here 456" << std::endl;
             numberOfErrors += i->resolveSimulations(doc);
-            std::cout << "got to here 789" << std::endl;
         }
         return numberOfErrors;
     }
