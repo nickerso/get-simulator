@@ -3,6 +3,7 @@
 
 #include <string>
 #include <map>
+#include <vector>
 
 class MyData
 {
@@ -13,6 +14,7 @@ public:
     std::string target;
     std::string taskReference;
     std::map<std::string, std::string> namespaces; // used to resolve the target XPath in the source document
+    std::vector<double> data;
 };
 
 class DataSet : public std::map<std::string, MyData>
