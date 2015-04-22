@@ -46,6 +46,7 @@ public:
     std::string rangeId;
     std::string targetXpath;
     std::string modelReference;
+    double currentRangeValue;
 };
 
 class MyTask
@@ -56,30 +57,55 @@ public:
         isRepeatedTask = false;
     }
 
+    /**
+     * @brief Execute the given task
+     * @param models
+     * @param simulations
+     * @param dataSets
+     * @param masterTaskId The ID of the current top-level task being executed (the parent repeated task)
+     * @param changesToApply
+     * @return
+     */
     int execute(std::map<std::string, MyModel>& models, std::map<std::string, MySimulation>& simulations,
-                DataSet& dataSets)
+                DataSet& dataSets, const std::string& masterTaskId, const std::vector<MySetValueChange>& changesToApply)
     {
         int numberOfErrors = 0;
-        if (isRepeatedTask) numberOfErrors = executeRepeated(models, simulations, dataSets);
-        else numberOfErrors = executeSingle(models, simulations, dataSets);
+        if (isRepeatedTask) numberOfErrors = executeRepeated(models, simulations, dataSets, masterTaskId, changesToApply);
+        else numberOfErrors = executeSingle(models, simulations, dataSets, masterTaskId, changesToApply);
         return numberOfErrors;
     }
 
     int executeRepeated(std::map<std::string, MyModel>& models, std::map<std::string, MySimulation>& simulations,
-                        DataSet& dataSets)
+                        DataSet& dataSets, const std::string& masterTaskId,
+                        const std::vector<MySetValueChange>& changesToApply)
     {
         int numberOfErrors = 0;
-        // FIXME: a quick and dirty initial implementation of repeated tasks where we have a single range to iterate over
+        // FIXME: a quick and dirty initial implementation of repeated tasks
         MyRange r = ranges[masterRangeId];
+        int rangeIndex = 0;
+        // take a copy of the set value changes that we need to make
+        std::vector<MySetValueChange> localSetValueChanges(setValueChanges);
         for (double rangeValue: r.rangeData)
         {
-            std::cout << "Execute repeat with range value: " << rangeValue << std::endl;
+            std::cout << "Execute repeat with master range value: " << rangeValue << std::endl;
+            // update the set value changes to have the current values
+            for (MySetValueChange& svc: localSetValueChanges)
+            {
+                const MyRange& rr = ranges[svc.rangeId];
+                svc.currentRangeValue = rr.rangeData[rangeIndex];
+            }
+            // and add them to the existing set of changes
+            localSetValueChanges.insert(localSetValueChanges.end(), changesToApply.begin(), changesToApply.end());
+            // and then execute the sub tasks
+            for (MyTask& st: subTasks) numberOfErrors += st.execute(models, simulations, dataSets, masterTaskId,
+                                                                    localSetValueChanges);
         }
         return numberOfErrors;
     }
 
     int executeSingle(std::map<std::string, MyModel>& models, std::map<std::string, MySimulation>& simulations,
-                      DataSet& dataSets)
+                      DataSet& dataSets, const std::string& masterTaskId,
+                      const std::vector<MySetValueChange>& changesToApply)
     {
         int numberOfErrors = 0;
         std::cout << "\n\nExecuting: " << id.c_str() << std::endl;
@@ -99,8 +125,8 @@ public:
             for (auto di = dataSets.begin(); di != dataSets.end(); ++di, ++columnIndex)
             {
                 MyData& d = di->second;
-                // we only want datasets relevant to this task
-                if (d.taskReference == this->id)
+                // we only want datasets relevant to this task (the master task)
+                if (d.taskReference == masterTaskId)
                 {
                     outputVariables.push_back(d.id);
                     results.push_back(&(d.data));
@@ -542,7 +568,8 @@ public:
         int numberOfErrors = 0;
         for (auto i = tasks.begin(); i != tasks.end(); ++i)
         {
-            numberOfErrors += i->second.execute(models, simulations, dataSets);
+            MyTask& t = i->second;
+            numberOfErrors += t.execute(models, simulations, dataSets, t.id, std::vector<MySetValueChange>());
         }
         return numberOfErrors;
     }
