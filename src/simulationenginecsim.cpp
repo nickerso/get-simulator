@@ -18,7 +18,7 @@ SimulationEngineCsim::~SimulationEngineCsim()
     if (mCsim) delete mCsim;
 }
 
-int SimulationEngineCsim::loadModel(const std::string &modelUrl, const std::vector<MySetValueChange>& changes)
+int SimulationEngineCsim::loadModel(const std::string &modelUrl)
 {
     // first flatten the model
     std::string flattenedModel = mCsim->serialiseCellmlFromUrl(modelUrl);
@@ -98,5 +98,11 @@ int SimulationEngineCsim::resetSimulator(bool resetModel)
     if (returnCode != 0) return returnCode;
     // the current checkpoint is the initial state of the model.
     if (resetModel) returnCode = mCsim->updateModelFromCheckpoint();
+    return returnCode;
+}
+
+int SimulationEngineCsim::applySetValueChanges(const std::vector<MySetValueChange> &changes)
+{
+    int returnCode = 0;
     return returnCode;
 }

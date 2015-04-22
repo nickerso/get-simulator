@@ -121,7 +121,7 @@ public:
             else
             {
                 csim = new SimulationEngineCsim();
-                csim->loadModel(model.source, changesToApply);
+                csim->loadModel(model.source);
                 int columnIndex = 1;
                 // keep track of the data arrays to store the simulation results
                 for (auto di = dataSets.begin(); di != dataSets.end(); ++di, ++columnIndex)
@@ -389,6 +389,25 @@ public:
           vc.rangeId = current->getRange();
           vc.modelReference = current->getModelReference();
           vc.targetXpath = current->getTarget();
+          // grab all the namespaces to use when resolving the target xpaths
+          const SedBase* c = current;
+          while (c)
+          {
+              const XMLNamespaces* nss = c->getNamespaces();
+              if (nss)
+              {
+                  for (int i = 0; i < nss->getNumNamespaces(); ++i)
+                  {
+                      std::string prefix = nss->getPrefix(i);
+                      if (vc.namespaces.count(prefix) == 0)
+                      {
+                          // only want to add a namespace if its not already in there
+                          vc.namespaces[prefix] = nss->getURI(i);
+                      }
+                  }
+              }
+              c = c->getParentSedObject();
+          }
         }
         for (unsigned int i = 0; i < sedRepeat->getNumSubTasks(); ++i)
         {
