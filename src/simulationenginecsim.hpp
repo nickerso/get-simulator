@@ -5,6 +5,7 @@
 #include <vector>
 
 class CellmlSimulator;
+class MySetValueChange;
 
 class SimulationEngineCsim
 {
@@ -15,9 +16,10 @@ public:
     /**
      * @brief Load the model from the given <modelUrl> into this CSim simulation engine.
      * @param modelUrl The URL of the CellML model to load.
+     * @param changes The "set value" changes required from repeated tasks.
      * @return zero on success, non-zero on failure.
      */
-    int loadModel(const std::string& modelUrl);
+    int loadModel(const std::string& modelUrl, const std::vector<MySetValueChange>& changes);
 
     /**
      * @brief Add the given data to this CSim instance's list of output variables.
@@ -48,6 +50,13 @@ public:
      * @return zero on success.
      */
     int simulateModelOneStep(double dt);
+
+    /**
+     * @brief Reset the simulator.
+     * @param resetModel If true, the model will be reset back to initial conditions.
+     * @return zero on success.
+     */
+    int resetSimulator(bool resetModel);
 
 private:
     std::string mModelUrl;

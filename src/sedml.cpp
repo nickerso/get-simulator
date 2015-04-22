@@ -11,6 +11,7 @@
 #include "simulationenginecsim.hpp"
 #include "simulationengineget.hpp"
 #include "utilityclasses.hpp"
+#include "setvaluechange.hpp"
 
 LIBSEDML_CPP_NAMESPACE_USE
 
@@ -40,15 +41,6 @@ public:
     std::vector<double> rangeData;
 };
 
-class MySetValueChange
-{
-public:
-    std::string rangeId;
-    std::string targetXpath;
-    std::string modelReference;
-    double currentRangeValue;
-};
-
 class MyTask
 {
 public:
@@ -67,11 +59,12 @@ public:
      * @return
      */
     int execute(std::map<std::string, MyModel>& models, std::map<std::string, MySimulation>& simulations,
-                DataSet& dataSets, const std::string& masterTaskId, const std::vector<MySetValueChange>& changesToApply)
+                DataSet& dataSets, const std::string& masterTaskId, bool resetModel,
+                const std::vector<MySetValueChange>& changesToApply)
     {
         int numberOfErrors = 0;
         if (isRepeatedTask) numberOfErrors = executeRepeated(models, simulations, dataSets, masterTaskId, changesToApply);
-        else numberOfErrors = executeSingle(models, simulations, dataSets, masterTaskId, changesToApply);
+        else numberOfErrors = executeSingle(models, simulations, dataSets, masterTaskId, resetModel, changesToApply);
         return numberOfErrors;
     }
 
@@ -98,13 +91,13 @@ public:
             localSetValueChanges.insert(localSetValueChanges.end(), changesToApply.begin(), changesToApply.end());
             // and then execute the sub tasks
             for (MyTask& st: subTasks) numberOfErrors += st.execute(models, simulations, dataSets, masterTaskId,
-                                                                    localSetValueChanges);
+                                                                    resetModel, localSetValueChanges);
         }
         return numberOfErrors;
     }
 
     int executeSingle(std::map<std::string, MyModel>& models, std::map<std::string, MySimulation>& simulations,
-                      DataSet& dataSets, const std::string& masterTaskId,
+                      DataSet& dataSets, const std::string& masterTaskId, bool resetModel,
                       const std::vector<MySetValueChange>& changesToApply)
     {
         int numberOfErrors = 0;
@@ -117,51 +110,60 @@ public:
         if (simulation.isCsim())
         {
             std::cout << "\trunning simulation task using CSim..." << std::endl;
-            SimulationEngineCsim csim;
-            csim.loadModel(model.source);
-            int columnIndex = 1;
-            // keep track of the data arrays to store the simulation results
+            // we need to keep track of exisiting CSim objects so that when executing repeated tasks
+            // the already created and initialised CSim can be used.
+            SimulationEngineCsim* csim;
+            if (csimList.count(id))
+            {
+                csim = csimList[id];
+                if (resetModel) csim->resetSimulator(true);
+            }
+            else
+            {
+                csim = new SimulationEngineCsim();
+                csim->loadModel(model.source, changesToApply);
+                int columnIndex = 1;
+                // keep track of the data arrays to store the simulation results
+                for (auto di = dataSets.begin(); di != dataSets.end(); ++di, ++columnIndex)
+                {
+                    MyData& d = di->second;
+                    // we only want datasets relevant to this task (the master task)
+                    if (d.taskReference == masterTaskId)
+                    {
+                        outputVariables.push_back(d.id);
+                        std::cout << "\tAdding dataset: " << d.id.c_str() << "; to the outputs for this task."
+                                  << std::endl;
+                        csim->addOutputVariable(d, columnIndex);
+                    }
+                }
+                // initialise the engine
+                if (csim->initialiseSimulation(simulation.initialTime, simulation.startTime) != 0)
+                {
+                    std::cerr << "Error initialising simulation?" << std::endl;
+                    return -1;
+                }
+                csimList[id] = csim;
+            }
+            // set up the results capture
             std::vector<std::vector<double>*> results;
-            for (auto di = dataSets.begin(); di != dataSets.end(); ++di, ++columnIndex)
+            for (auto di = dataSets.begin(); di != dataSets.end(); ++di)
             {
                 MyData& d = di->second;
-                // we only want datasets relevant to this task (the master task)
-                if (d.taskReference == masterTaskId)
-                {
-                    outputVariables.push_back(d.id);
-                    results.push_back(&(d.data));
-                    std::cout << "\tAdding dataset: " << d.id.c_str() << "; to the outputs for this task."
-                              << std::endl;
-                    csim.addOutputVariable(d, columnIndex);
-                }
+                if (d.taskReference == masterTaskId) results.push_back(&(d.data));
             }
-            // initialise the engine
-            if (csim.initialiseSimulation(simulation.initialTime, simulation.startTime) != 0)
-            {
-                std::cerr << "Error initialising simulation?" << std::endl;
-                return -1;
-            }
-            std::vector<double> stepResults = csim.getOutputValues();
-            //std::cout << "Simulation results:\n";
-            //for (auto i = outputVariables.begin(); i != outputVariables.end(); ++i)
-            //    std::cout << *i << "\t";
-            //std::cout << std::endl;
-            //for (auto j = stepResults.begin(); j != stepResults.end(); ++j)
-            //    std::cout << *j << "\t";
-            //std::cout << std::endl;
+            std::vector<double> stepResults = csim->getOutputValues();
+            std::cout << "Got to here 5678" << std::endl;
             int r = 0;
             for (auto j = stepResults.begin(); j != stepResults.end(); ++j, ++r)
                 results[r]->push_back(*j);
+            std::cout << "Got to here 1234" << std::endl;
             double dt = (simulation.endTime - simulation.startTime) / simulation.numberOfPoints;
             double time = simulation.startTime;
             for (int i = 1; i <= simulation.numberOfPoints; ++i, time += dt)
             {
-                if (csim.simulateModelOneStep(dt) == 0)
+                if (csim->simulateModelOneStep(dt) == 0)
                 {
-                    stepResults = csim.getOutputValues();
-                    //for (auto j = results.begin(); j != results.end(); ++j)
-                    //    std::cout << *j << "\t";
-                    //std::cout << std::endl;
+                    stepResults = csim->getOutputValues();
                     r = 0;
                     for (auto j = stepResults.begin(); j != stepResults.end(); ++j, ++r)
                         results[r]->push_back(*j);
@@ -212,6 +214,12 @@ public:
     std::map<std::string, MyRange> ranges;
     std::vector<MyTask> subTasks;
     std::vector<MySetValueChange> setValueChanges;
+    std::map<std::string, SimulationEngineCsim*> csimList;
+
+    ~MyTask()
+    {
+        for (auto i = csimList.begin(); i != csimList.end(); ++i) delete i->second;
+    }
 };
 
 
@@ -569,7 +577,7 @@ public:
         for (auto i = tasks.begin(); i != tasks.end(); ++i)
         {
             MyTask& t = i->second;
-            numberOfErrors += t.execute(models, simulations, dataSets, t.id, std::vector<MySetValueChange>());
+            numberOfErrors += t.execute(models, simulations, dataSets, t.id, false, std::vector<MySetValueChange>());
         }
         return numberOfErrors;
     }

@@ -2,9 +2,11 @@
 #include <map>
 #include <cmath>
 #include <CellmlSimulator.hpp>
+#include <vector>
 
 #include "dataset.hpp"
 #include "simulationenginecsim.hpp"
+#include "setvaluechange.hpp"
 
 SimulationEngineCsim::SimulationEngineCsim()
 {
@@ -16,14 +18,18 @@ SimulationEngineCsim::~SimulationEngineCsim()
     if (mCsim) delete mCsim;
 }
 
-int SimulationEngineCsim::loadModel(const std::string &modelUrl)
+int SimulationEngineCsim::loadModel(const std::string &modelUrl, const std::vector<MySetValueChange>& changes)
 {
+    // first flatten the model
     std::string flattenedModel = mCsim->serialiseCellmlFromUrl(modelUrl);
     if (flattenedModel == "")
     {
         std::cerr << "Error serializing model: " << modelUrl.c_str() << std::endl;
         return -1;
     }
+    // and then apply the changes
+    //flattenedModel = mCsim->setVariableValue()
+    // and load the model
     if (mCsim->loadModelString(flattenedModel) != 0)
     {
         std::cerr << "Error loading model string: " << flattenedModel.c_str() << std::endl;
@@ -84,4 +90,13 @@ std::vector<double> SimulationEngineCsim::getOutputValues()
 int SimulationEngineCsim::simulateModelOneStep(double dt)
 {
     return mCsim->simulateModelOneStep(dt);
+}
+
+int SimulationEngineCsim::resetSimulator(bool resetModel)
+{
+    int returnCode = mCsim->resetIntegrator();
+    if (returnCode != 0) return returnCode;
+    // the current checkpoint is the initial state of the model.
+    if (resetModel) returnCode = mCsim->updateModelFromCheckpoint();
+    return returnCode;
 }
