@@ -101,8 +101,18 @@ int SimulationEngineCsim::resetSimulator(bool resetModel)
     return returnCode;
 }
 
-int SimulationEngineCsim::applySetValueChanges(const std::vector<MySetValueChange> &changes)
+int SimulationEngineCsim::applySetValueChange(const MySetValueChange& change)
 {
     int returnCode = 0;
+    std::string variableId = mCsim->mapXpathToVariableId(change.targetXpath, change.namespaces);
+    if (variableId.length() > 0)
+    {
+        std::cout << "\t\tSetting variable: '" << variableId << "'" << std::endl;
+    }
+    else
+    {
+        std::cerr << "Unable to map output variable target to a variable in the model: " << change.targetXpath << std::endl;
+        returnCode = -1;
+    }
     return returnCode;
 }

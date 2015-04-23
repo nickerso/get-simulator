@@ -144,6 +144,15 @@ public:
                 }
                 csimList[id] = csim;
             }
+            // apply relevant changes
+            for (const MySetValueChange& change: changesToApply)
+            {
+                std::cout << "Change to apply: " << std::endl;
+                if (change.modelReference == modelReference)
+                {
+                    csim->applySetValueChange(change);
+                }
+            }
             // set up the results capture
             std::vector<std::vector<double>*> results;
             for (auto di = dataSets.begin(); di != dataSets.end(); ++di)

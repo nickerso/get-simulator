@@ -58,11 +58,11 @@ public:
     int resetSimulator(bool resetModel);
 
     /**
-     * @brief Apply the changes described by the set value changes. Assumes its always a trivial set variable value.
-     * @param changes The set-value changes to make, from a repeated task.
+     * @brief Apply the change described by the set value change. Assumes its always a trivial set variable value.
+     * @param changes The set-value change to make, from a repeated task.
      * @return zero on success.
      */
-    int applySetValueChanges(const std::vector<MySetValueChange>& changes);
+    int applySetValueChange(const MySetValueChange& change);
 
 private:
     std::string mModelUrl;
