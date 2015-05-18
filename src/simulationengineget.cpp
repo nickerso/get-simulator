@@ -2,7 +2,9 @@
 #include <fstream>
 #include <map>
 #include <cmath>
+#if 0
 #include <CellmlSimulator.hpp>
+#endif
 
 #include "common.hpp"
 #include "molecule.hpp"
@@ -14,16 +16,21 @@
 
 SimulationEngineGet::SimulationEngineGet()
 {
+#if 0
     mCsim = new CellmlSimulator();
+#endif
 }
 
 SimulationEngineGet::~SimulationEngineGet()
 {
+#if 0
     if (mCsim) delete mCsim;
+#endif
 }
 
 int SimulationEngineGet::loadModel(const std::string& modelUrl)
 {
+#if 0
     std::string flattenedModel = mCsim->serialiseCellmlFromUrl(modelUrl);
     if (flattenedModel == "")
     {
@@ -42,10 +49,13 @@ int SimulationEngineGet::loadModel(const std::string& modelUrl)
         return -3;
     }
     return 0;
+#endif
+    return -1;
 }
 
 int SimulationEngineGet::addOutputVariable(const MyData &data, int columnIndex)
 {
+#if 0
     int numberOfErrors = 0;
     std::string variableId = mCsim->mapXpathToVariableId(data.target, data.namespaces);
     if (variableId.length() > 0)
@@ -59,6 +69,8 @@ int SimulationEngineGet::addOutputVariable(const MyData &data, int columnIndex)
         ++numberOfErrors;
     }
     return numberOfErrors;
+#endif
+    return -1;
 }
 
 int SimulationEngineGet::initialiseSimulation()

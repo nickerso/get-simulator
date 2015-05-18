@@ -40,7 +40,9 @@ public:
 
 private:
     std::string mModelUrl;
+#if 0
     CellmlSimulator* mCsim;
+#endif
 };
 
 #endif // SIMULATIONENGINEGET_HPP

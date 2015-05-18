@@ -6,7 +6,7 @@
  */
 
 /**
- * A client that uses libsedml to run CellML/GET simulation experiments.
+ * A client that uses CSim to run CellML/GET simulation experiments.
  */
 
 #include <iostream>

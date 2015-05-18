@@ -4,6 +4,8 @@
 #include <string>
 #include <vector>
 
+#include "dataset.hpp"
+
 class CellmlSimulator;
 class MySetValueChange;
 

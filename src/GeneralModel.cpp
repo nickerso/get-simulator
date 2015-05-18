@@ -7,7 +7,9 @@
 #include <cmath>
 #include <iostream>
 
+#if 0
 #include <CellmlSimulator.hpp>
+#endif
 
 #include "common.hpp"
 #include "molecule.hpp"

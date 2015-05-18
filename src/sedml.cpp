@@ -517,6 +517,8 @@ public:
                 if (kisaoId == "KISAO:0000019")
                 {
                     // CVODE integration, we can handle that with CSim
+                    // FIXME: with CSim-v2 we can now do more, but this will do to get
+                    // things working.
                     s.setSimulationTypeCsim();
                     s.initialTime = tc->getInitialTime();
                     s.startTime = tc->getOutputStartTime();
