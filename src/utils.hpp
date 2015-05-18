@@ -19,4 +19,16 @@ std::string buildAbsoluteUri(const std::string& uri, const std::string& base);
   */
 std::string urlChildOf(const std::string& url, const std::string& base);
 
+/**
+ * Looks for /model/component/variable[@initial_value] type xpath expression and turns it into
+ * /model/component/variable.
+ *
+ * FIXME: this is a dirty hack to quickly get set-value style changes in repeated tasks working. Needs to be
+ * removed ASAP.
+ *
+ * @param xpath
+ * @return
+ */
+std::string mapToStandardVariableXpath(const std::string& xpath);
+
 #endif // UTILS_HPP

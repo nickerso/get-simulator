@@ -115,3 +115,10 @@ std::string urlChildOf(const std::string& url, const std::string& base)
     }
     return result;
 }
+
+std::string mapToStandardVariableXpath(const std::string& xpath)
+{
+    std::string result(xpath);
+    result.erase(result.find("/@initial_value"));
+    return result;
+}

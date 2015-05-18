@@ -7,6 +7,7 @@
 #include "dataset.hpp"
 #include "simulationenginecsim.hpp"
 #include "setvaluechange.hpp"
+#include "utils.hpp"
 
 SimulationEngineCsim::SimulationEngineCsim()
 {
@@ -104,10 +105,12 @@ int SimulationEngineCsim::resetSimulator(bool resetModel)
 int SimulationEngineCsim::applySetValueChange(const MySetValueChange& change)
 {
     int returnCode = 0;
-    std::string variableId = mCsim->mapXpathToVariableId(change.targetXpath, change.namespaces);
+    std::string modifiedTarget = mapToStandardVariableXpath(change.targetXpath);
+    std::string variableId = mCsim->mapXpathToVariableId(modifiedTarget, change.namespaces);
     if (variableId.length() > 0)
     {
         std::cout << "\t\tSetting variable: '" << variableId << "'" << std::endl;
+        mCsim->setVariableValue(variableId, change.currentRangeValue);
     }
     else
     {

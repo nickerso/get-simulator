@@ -74,24 +74,26 @@ public:
     {
         int numberOfErrors = 0;
         // FIXME: a quick and dirty initial implementation of repeated tasks
-        MyRange r = ranges[masterRangeId];
+        const MyRange& r = ranges[masterRangeId];
         int rangeIndex = 0;
         // take a copy of the set value changes that we need to make
         std::vector<MySetValueChange> localSetValueChanges(setValueChanges);
         for (double rangeValue: r.rangeData)
         {
-            std::cout << "Execute repeat with master range value: " << rangeValue << std::endl;
+            std::cout << "Execute repeat with master range (" << masterRangeId << ") value: " << rangeValue << std::endl;
             // update the set value changes to have the current values
             for (MySetValueChange& svc: localSetValueChanges)
             {
                 const MyRange& rr = ranges[svc.rangeId];
                 svc.currentRangeValue = rr.rangeData[rangeIndex];
+                std::cout << "Setting range: " << svc.rangeId << "; to value: " << svc.currentRangeValue << std::endl;
             }
             // and add them to the existing set of changes
             localSetValueChanges.insert(localSetValueChanges.end(), changesToApply.begin(), changesToApply.end());
             // and then execute the sub tasks
             for (MyTask& st: subTasks) numberOfErrors += st.execute(models, simulations, dataSets, masterTaskId,
                                                                     resetModel, localSetValueChanges);
+            ++rangeIndex;
         }
         return numberOfErrors;
     }
@@ -104,6 +106,7 @@ public:
         std::cout << "\n\nExecuting: " << id.c_str() << std::endl;
         std::cout << "\tsimulation = " << simulationReference.c_str() << std::endl;
         std::cout << "\tmodel = " << modelReference.c_str() << std::endl;
+        std::cout << "\tnumber of changes to apply = " << changesToApply.size() << std::endl;
         const MyModel& model = models[modelReference];
         const MySimulation& simulation = simulations[simulationReference];
         std::vector<std::string> outputVariables;
@@ -150,6 +153,7 @@ public:
                 std::cout << "Change to apply: " << std::endl;
                 if (change.modelReference == modelReference)
                 {
+                    std::cout << "Applying set value change, value: " << change.currentRangeValue << std::endl;
                     csim->applySetValueChange(change);
                 }
             }
@@ -161,7 +165,6 @@ public:
                 if (d.taskReference == masterTaskId) results.push_back(&(d.data));
             }
             std::vector<double> stepResults = csim->getOutputValues();
-            std::cout << "Got to here 5678" << std::endl;
             int r = 0;
             for (auto j = stepResults.begin(); j != stepResults.end(); ++j, ++r)
                 results[r]->push_back(*j);
@@ -391,32 +394,33 @@ public:
 
         for (unsigned int i = 0; i < sedRepeat->getNumTaskChanges(); ++i)
         {
-          const SedSetValue* current = sedRepeat->getTaskChange(i);
-          // FIXME: for now assume that if a range attribute is present we simply want to assign the current range value
-          // to the given target. Will ignore the math.
-          MySetValueChange vc;
-          vc.rangeId = current->getRange();
-          vc.modelReference = current->getModelReference();
-          vc.targetXpath = current->getTarget();
-          // grab all the namespaces to use when resolving the target xpaths
-          const SedBase* c = current;
-          while (c)
-          {
-              const XMLNamespaces* nss = c->getNamespaces();
-              if (nss)
-              {
-                  for (int i = 0; i < nss->getNumNamespaces(); ++i)
-                  {
-                      std::string prefix = nss->getPrefix(i);
-                      if (vc.namespaces.count(prefix) == 0)
-                      {
-                          // only want to add a namespace if its not already in there
-                          vc.namespaces[prefix] = nss->getURI(i);
-                      }
-                  }
-              }
-              c = c->getParentSedObject();
-          }
+            const SedSetValue* current = sedRepeat->getTaskChange(i);
+            // FIXME: for now assume that if a range attribute is present we simply want to assign the current range value
+            // to the given target. Will ignore the math.
+            MySetValueChange vc;
+            vc.rangeId = current->getRange();
+            vc.modelReference = current->getModelReference();
+            vc.targetXpath = current->getTarget();
+            // grab all the namespaces to use when resolving the target xpaths
+            const SedBase* c = current;
+            while (c)
+            {
+                const XMLNamespaces* nss = c->getNamespaces();
+                if (nss)
+                {
+                    for (int i = 0; i < nss->getNumNamespaces(); ++i)
+                    {
+                        std::string prefix = nss->getPrefix(i);
+                        if (vc.namespaces.count(prefix) == 0)
+                        {
+                            // only want to add a namespace if its not already in there
+                            vc.namespaces[prefix] = nss->getURI(i);
+                        }
+                    }
+                }
+                c = c->getParentSedObject();
+            }
+            repeat.setValueChanges.push_back(vc);
         }
         for (unsigned int i = 0; i < sedRepeat->getNumSubTasks(); ++i)
         {
