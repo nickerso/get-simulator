@@ -60,7 +60,7 @@ public:
      */
     int execute(std::map<std::string, MyModel>& models, std::map<std::string, MySimulation>& simulations,
                 DataSet& dataSets, const std::string& masterTaskId, bool resetModel,
-                const std::vector<MySetValueChange>& changesToApply)
+                std::vector<MySetValueChange>& changesToApply)
     {
         int numberOfErrors = 0;
         if (isRepeatedTask) numberOfErrors = executeRepeated(models, simulations, dataSets, masterTaskId, changesToApply);
@@ -70,7 +70,7 @@ public:
 
     int executeRepeated(std::map<std::string, MyModel>& models, std::map<std::string, MySimulation>& simulations,
                         DataSet& dataSets, const std::string& masterTaskId,
-                        const std::vector<MySetValueChange>& changesToApply)
+                        std::vector<MySetValueChange>& changesToApply)
     {
         int numberOfErrors = 0;
         // FIXME: a quick and dirty initial implementation of repeated tasks
@@ -100,7 +100,7 @@ public:
 
     int executeSingle(std::map<std::string, MyModel>& models, std::map<std::string, MySimulation>& simulations,
                       DataSet& dataSets, const std::string& masterTaskId, bool resetModel,
-                      const std::vector<MySetValueChange>& changesToApply)
+                      std::vector<MySetValueChange>& changesToApply)
     {
         int numberOfErrors = 0;
         std::cout << "\n\nExecuting: " << id.c_str() << std::endl;
@@ -125,18 +125,25 @@ public:
             {
                 csim = new SimulationEngineCsim();
                 csim->loadModel(model.source);
-                int columnIndex = 1;
                 // keep track of the data arrays to store the simulation results
-                for (auto di = dataSets.begin(); di != dataSets.end(); ++di, ++columnIndex)
+                for (auto& di: dataSets)
                 {
-                    MyData& d = di->second;
+                    MyData& d = di.second;
                     // we only want datasets relevant to this task (the master task)
                     if (d.taskReference == masterTaskId)
                     {
                         outputVariables.push_back(d.id);
                         std::cout << "\tAdding dataset: " << d.id.c_str() << "; to the outputs for this task."
                                   << std::endl;
-                        csim->addOutputVariable(d, columnIndex);
+                        csim->addOutputVariable(d);
+                    }
+                }
+                // we also need to access the variables for setting changes as inputs
+                for (MySetValueChange& change: changesToApply)
+                {
+                    if (change.modelReference == modelReference)
+                    {
+                        csim->addInputVariable(change);
                     }
                 }
                 // initialise the engine
@@ -611,7 +618,8 @@ public:
         for (auto i = tasks.begin(); i != tasks.end(); ++i)
         {
             MyTask& t = i->second;
-            numberOfErrors += t.execute(models, simulations, dataSets, t.id, false, std::vector<MySetValueChange>());
+            std::vector<MySetValueChange> changes;
+            numberOfErrors += t.execute(models, simulations, dataSets, t.id, false, changes);
         }
         return numberOfErrors;
     }

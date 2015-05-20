@@ -15,6 +15,7 @@ public:
     std::string taskReference;
     std::map<std::string, std::string> namespaces; // used to resolve the target XPath in the source document
     std::vector<double> data;
+    int outputIndex;
 };
 
 class DataSet : public std::map<std::string, MyData>

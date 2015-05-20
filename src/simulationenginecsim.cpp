@@ -41,14 +41,29 @@ int SimulationEngineCsim::loadModel(const std::string &modelUrl)
     return 0;
 }
 
-int SimulationEngineCsim::addOutputVariable(const MyData &data, int columnIndex)
+int SimulationEngineCsim::addOutputVariable(MyData &data)
 {
     int numberOfErrors = 0;
     std::string variableId = mCsim->model.mapXpathToVariableId(data.target, data.namespaces);
-    if (mCsim->model.setVariableAsOutput(variableId) < 0)
+    data.outputIndex = mCsim->model.setVariableAsOutput(variableId);
+    if (data.outputIndex < 0)
     {
         std::cerr << "Unable to map output variable target to a variable in the model: " << data.target
-                  << "(id: " << variableId << ")" << std::endl;
+                  << "(id: " << variableId << ")" << "; error code: " << data.outputIndex << std::endl;
+        ++numberOfErrors;
+    }
+    return numberOfErrors;
+}
+
+int SimulationEngineCsim::addInputVariable(MySetValueChange& change)
+{
+    int numberOfErrors = 0;
+    std::string variableId = mCsim->model.mapXpathToVariableId(change.targetXpath, change.namespaces);
+    change.inputIndex = mCsim->model.setVariableAsInput(variableId);
+    if (change.inputIndex < 0)
+    {
+        std::cerr << "Unable to map input variable target to a variable in the model: " << change.targetXpath
+                  << " (id: " << variableId << ")" << "; error code: " << change.inputIndex << std::endl;
         ++numberOfErrors;
     }
     return numberOfErrors;
@@ -56,7 +71,7 @@ int SimulationEngineCsim::addOutputVariable(const MyData &data, int columnIndex)
 
 int SimulationEngineCsim::initialiseSimulation(double initialTime, double startTime)
 {
-    if (mCsim->model.instantiate() != csim::CSIM_OK)
+    if (mCsim->model.instantiate(true) != csim::CSIM_OK)
     {
         std::cerr <<"SimulationEngineCsim::initialiseSimulation - Error compiling model." << std::endl;
         return -1;

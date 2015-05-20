@@ -24,11 +24,23 @@ public:
 
     /**
      * @brief Add the given data to this CSim instance's list of output variables.
+     * This method will update the data object with information on where it is stored in the outputs of the model. All
+     * outputs must be flagged prior to initialising the simulation.
+     * @sa initialiseSimulation, addOutputVariable
      * @param data The data to register as an output variable.
-     * @param columnIndex The index of this variable in the output array (first index = 1).
      * @return zero on success, non-zero on failure.
      */
-    int addOutputVariable(const MyData& data, int columnIndex);
+    int addOutputVariable(MyData& data);
+
+    /**
+     * @brief Add the required variable from the given set value change to this CSim's list of input variables.
+     * This method will update the change object with the information on where it is stored in the inputs of the model.
+     * All inputs must be flagged prior to initialising the simulation.
+     * @sa initialiseSimulation, addInputVariable
+     * @param change The set value change to flag as an input for this simulation.
+     * @return zero on success, non-zero on failure.
+     */
+    int addInputVariable(MySetValueChange& change);
 
     /**
      * @brief Initialise the simulation for this instance of the CSim tool. Should be called after all output variables

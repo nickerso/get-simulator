@@ -6,6 +6,7 @@
 class MySetValueChange
 {
 public:
+    int inputIndex;
     std::string rangeId;
     std::string targetXpath;
     std::string modelReference;
