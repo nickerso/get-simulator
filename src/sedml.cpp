@@ -147,9 +147,9 @@ public:
                     }
                 }
                 // initialise the engine
-                if (csim->initialiseSimulation(simulation.initialTime, simulation.startTime) != 0)
+                if (csim->instantiateSimulation() != 0)
                 {
-                    std::cerr << "Error initialising simulation?" << std::endl;
+                    std::cerr << "Error instantiating the simulation?" << std::endl;
                     return -1;
                 }
                 csimList[id] = csim;
@@ -164,6 +164,9 @@ public:
                     csim->applySetValueChange(change);
                 }
             }
+            // initialise the simulation
+            csim->initialiseSimulation(simulation.initialTime, simulation.startTime);
+            std::cout << "got to here 2345" << std::endl;
             // set up the results capture
             std::vector<std::vector<double>*> results;
             for (auto di = dataSets.begin(); di != dataSets.end(); ++di)

@@ -43,10 +43,21 @@ public:
     int addInputVariable(MySetValueChange& change);
 
     /**
-     * @brief Initialise the simulation for this instance of the CSim tool. Should be called after all output variables
-     * have been added as they can not be added after the simulation is compiled into executable code.
+     * @brief Instantiate the simulation for this instance of CSim.
+     * Will cause the model to be compiled, and thus should only be called once all inputs
+     * and outputs have been flagged as they can not be added after the simulation is
+     * instantiated.
+     * @return zero on success.
+     */
+    int instantiateSimulation();
+
+    /**
+     * @brief Initialise the simulation.
+     * Should be called after the simulation is instantiated and after any changes have been
+     * applied to the model.
      * @param initialTime The initial value of the variable of integration.
-     * @param startTime The final value of the variable of integration, the value at which the user will start collecting output.
+     * @param startTime The final value of the variable of integration, the value at
+     * which the user will start collecting output.
      * @return zero on success.
      */
     int initialiseSimulation(double initialTime, double startTime);
@@ -55,14 +66,15 @@ public:
      * @brief Fetch the current values of the output variables for this instance of the simulation engine.
      * @return A vector of the output variable values.
      */
-    std::vector<double> getOutputValues();
+    const std::vector<double>& getOutputValues();
 
     /**
      * @brief Simulate the model for one time period.
-     * @param dt
+     * The simulation must be initialised prior to calling this method.
+     * @param step The size of the step to take.
      * @return zero on success.
      */
-    int simulateModelOneStep(double dt);
+    int simulateModelOneStep(double step);
 
     /**
      * @brief Reset the simulator.
@@ -81,6 +93,8 @@ public:
 private:
     std::string mModelUrl;
     CellmlSimulator* mCsim;
+    // will only be true once the simulation has been initialised.
+    bool mInitialised;
 };
 
 #endif // SIMULATIONENGINECSIM_HPP
