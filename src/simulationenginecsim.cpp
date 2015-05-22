@@ -7,47 +7,86 @@
 #include <csim/error_codes.h>
 #include <csim/executable_functions.h>
 
+#include <cvode/cvode.h>             /* main integrator header file */
+#include <nvector/nvector_serial.h>  /* serial N_Vector types, fct. and macros */
+#include <sundials/sundials_types.h> /* definition of realtype */
+
 #include "dataset.hpp"
 #include "simulationenginecsim.hpp"
 #include "setvaluechange.hpp"
 #include "utils.hpp"
 
+/* Functions called by CVODE */
+static int f(realtype t, N_Vector y, N_Vector ydot, void *user_data);
+/* Private function to check function return values */
+static int check_flag(void *flagvalue, const char *funcname, int opt);
+
+/* Shared Problem Constants */
+#define ATOL RCONST(1.0e-6)
+#define RTOL RCONST(0.0)
+#define ZERO_TOL RCONST(1.0e-7)
+
 // hide the details from the caller?
 class CellmlSimulator
 {
 public:
+    CellmlSimulator() : mCvode(0)
+    {
+
+    }
+    ~CellmlSimulator()
+    {
+        if (mCvode) CVodeFree(&mCvode);
+    }
+
     csim::Model model;
     csim::InitialiseFunction initialiseFunction;
     csim::ModelFunction modelFunction;
     double voi;
-    std::vector<double> states, rates, outputs, inputs;
+    std::vector<double> states, outputs, inputs;
+    N_Vector nv_states, nv_rates;
     struct
     {
         double voi;
         std::vector<double> states, outputs, inputs;
     } cache;
+
+    int createIntegrator(double x0)
+    {
+        // initialise our variable of integration
+        voi = x0;
+        // create and initialise our CVODE integrator
+        double reltol = RTOL, abstol = ATOL;
+        mCvode = CVodeCreate(CV_ADAMS, CV_FUNCTIONAL);
+        if(check_flag(mCvode, "CVodeCreate", 0)) return(1);
+        nv_states = N_VMake_Serial(states.size(), states.data());
+        nv_rates = N_VNew_Serial(states.size());
+        int flag = CVodeInit(mCvode, f, x0, nv_states);
+        if(check_flag(&flag, "CVodeInit", 1)) return(1);
+        flag = CVodeSStolerances(mCvode, reltol, abstol);
+        if(check_flag(&flag, "CVodeSStolerances", 1)) return(1);
+        // add our user data
+        flag = CVodeSetUserData(mCvode, (void*)(this));
+        if (check_flag(&flag,"CVodeSetUserData",1)) return(1);
+        return 0;
+    }
+
     void callInitialise()
     {
         initialiseFunction(states.data(), outputs.data(), inputs.data());
     }
     void callModel()
     {
-        modelFunction(voi, states.data(), rates.data(), outputs.data(), inputs.data());
+        modelFunction(voi, NV_DATA_S(nv_states), NV_DATA_S(nv_rates), outputs.data(), inputs.data());
     }
     int simulateModelOneStep(double step)
     {
-        // hard code Euler for now
-        double dt = step / 1000.0; // really arbitrary :)
-        double end = voi+step;
-        while (fabs(end-voi) > 1.0e-8)
-        {
-            voi += dt;
-            if (fabs(end - voi) > 1.0e-8) voi = end;
-            // calculate rates
-            callModel();
-            // euler update
-            for (int i = 0; i < states.size(); ++i) states[i] += rates[i] * dt;
-        }
+        if (fabs(step) < ZERO_TOL) return 0; // nothing to do
+        double xout = voi + step;
+        int flag = CVodeSetStopTime(mCvode, xout);
+        if (check_flag(&flag,"CVodeSetStopStime",1)) return(1);
+        flag = CVode(mCvode, xout, nv_states, &voi, CV_NORMAL);
+        if (check_flag(&flag,"CVode",1)) return(1);
         // make sure the non-state variables are at the correct time
         callModel();
         return 0;
@@ -66,6 +105,8 @@ public:
         outputs = cache.outputs;
         states = cache.states;
     }
+private:
+    void* mCvode;
 };
 
 SimulationEngineCsim::SimulationEngineCsim()
@@ -137,15 +178,18 @@ int SimulationEngineCsim::instantiateSimulation()
     mCsim->initialiseFunction = mCsim->model.getInitialiseFunction();
     mCsim->modelFunction = mCsim->model.getModelFunction();
     mCsim->states.resize(mCsim->model.numberOfStateVariables());
-    mCsim->rates.resize(mCsim->model.numberOfStateVariables());
     mCsim->callInitialise();
     return 0;
 }
 
 int SimulationEngineCsim::initialiseSimulation(double initialTime, double startTime)
 {
-    // set the initial VOI value
-    mCsim->voi = initialTime;
+    // create our integrator
+    if (mCsim->createIntegrator(initialTime) != 0)
+    {
+        std::cerr << "SimulationEngineCsim::initialiseSimulation: error creating CVODE integrator." << std::endl;
+        return -1;
+    }
     // ensure the model is correct for the given initial value
     mCsim->callModel();
     // and checkpoint the model at the initial point
@@ -188,4 +232,38 @@ int SimulationEngineCsim::applySetValueChange(const MySetValueChange& change)
     }
     mCsim->inputs[change.inputIndex] = change.currentRangeValue;
     return 0;
+}
+
+int f(realtype x, N_Vector y, N_Vector ydot, void *user_data)
+{
+    CellmlSimulator* ud = (CellmlSimulator*)user_data;
+    ud->modelFunction(x, NV_DATA_S(y), NV_DATA_S(ydot), ud->outputs.data(), ud->inputs.data());
+    return 0;
+}
+
+static int check_flag(void *flagvalue, const char *funcname, int opt)
+{
+  int *errflag;
+
+  /* Check if SUNDIALS function returned NULL pointer - no memory allocated */
+  if (opt == 0 && flagvalue == NULL) {
+    fprintf(stderr, "\nSUNDIALS_ERROR: %s() failed - returned NULL pointer\n\n",
+            funcname);
+    return(1); }
+
+  /* Check if flag < 0 */
+  else if (opt == 1) {
+    errflag = (int *) flagvalue;
+    if (*errflag < 0) {
+      fprintf(stderr, "\nSUNDIALS_ERROR: %s() failed with flag = %d\n\n",
+              funcname, *errflag);
+      return(1); }}
+
+  /* Check if function returned NULL pointer - no memory allocated */
+  else if (opt == 2 && flagvalue == NULL) {
+    fprintf(stderr, "\nMEMORY_ERROR: %s() failed - returned NULL pointer\n\n",
+            funcname);
+    return(1); }
+
+  return(0);
 }

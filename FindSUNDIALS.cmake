@@ -1,12 +1,12 @@
 # - Find Sundials libraries that we need
-# Find the CVODES and KINSOL includes and libraries
+# Find the CVODE and KINSOL includes and libraries
 
-FIND_PATH(SUNDIALS_INCLUDE_DIR cvodes/cvodes.h 
+FIND_PATH(SUNDIALS_INCLUDE_DIR cvode/cvode.h
         /usr/include/
         /usr/local/include/
 )
 
-FIND_LIBRARY(CVODES_LIBRARY sundials_cvodes
+FIND_LIBRARY(CVODE_LIBRARY sundials_cvode
         /usr/lib
         /usr/local/lib
 )
@@ -21,8 +21,8 @@ FIND_LIBRARY(NVECTOR_SERIAL_LIBRARY sundials_nvecserial
         /usr/local/lib
 ) 
 
-IF (SUNDIALS_INCLUDE_DIR AND CVODES_LIBRARY AND KINSOL_LIBRARY AND NVECTOR_SERIAL_LIBRARY)
-   SET(SUNDIALS_LIBRARIES ${CVODES_LIBRARY} ${KINSOL_LIBRARY} ${NVECTOR_SERIAL_LIBRARY})
+IF (SUNDIALS_INCLUDE_DIR AND CVODE_LIBRARY AND KINSOL_LIBRARY AND NVECTOR_SERIAL_LIBRARY)
+   SET(SUNDIALS_LIBRARIES ${CVODE_LIBRARY} ${KINSOL_LIBRARY} ${NVECTOR_SERIAL_LIBRARY})
    SET(SUNDIALS_FOUND TRUE)
 ENDIF ()
 
