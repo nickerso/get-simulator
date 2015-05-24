@@ -29,6 +29,10 @@ else(WIN32)
     set(PLATFORM_LIBS ${PLATFORM_LIBS} "m")
 endif(WIN32)
 
+if(${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
+   list(APPEND PLATFORM_LIBS "z" "lzma" "bz2")
+endif()
+
 # Global includes?
 INCLUDE_DIRECTORIES(
   ${CMAKE_SOURCE_DIR}/src

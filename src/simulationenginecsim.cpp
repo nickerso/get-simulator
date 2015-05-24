@@ -144,7 +144,7 @@ int SimulationEngineCsim::addOutputVariable(MyData &data)
     else
     {
         // make sure the output vector is big enough
-        if (data.outputIndex >= mCsim->outputs.size()) mCsim->outputs.resize(data.outputIndex+1);
+        if (data.outputIndex >= (int)mCsim->outputs.size()) mCsim->outputs.resize(data.outputIndex+1);
     }
     return numberOfErrors;
 }
@@ -163,7 +163,7 @@ int SimulationEngineCsim::addInputVariable(MySetValueChange& change)
     else
     {
         // make sure the inputs vector is large enough
-        if (change.inputIndex >= mCsim->inputs.size()) mCsim->inputs.resize(change.inputIndex+1);
+        if (change.inputIndex >= (int)mCsim->inputs.size()) mCsim->inputs.resize(change.inputIndex+1);
     }
     return numberOfErrors;
 }
@@ -223,7 +223,7 @@ int SimulationEngineCsim::resetSimulator(bool resetModel)
 
 int SimulationEngineCsim::applySetValueChange(const MySetValueChange& change)
 {
-    if (change.inputIndex >= mCsim->inputs.size())
+    if (change.inputIndex >= (int)mCsim->inputs.size())
     {
         std::cerr << "SimulationEngineCsim::applySetValueChange: invalid input index."
                   << " inputIndex = " << change.inputIndex << "; inputs.size() = "
