@@ -60,8 +60,9 @@ public:
      */
     int execute(std::map<std::string, MyModel>& models, std::map<std::string, MySimulation>& simulations,
                 DataSet& dataSets, const std::string& masterTaskId, bool resetModel,
-                std::vector<MySetValueChange>& changesToApply)
+                std::vector<MySetValueChange*>& changesToApply)
     {
+        std::cout << "rangeId: " << setValueChanges[0]->rangeId << "; modelReference: " << setValueChanges[0]->modelReference << "; target: " << setValueChanges[0]->targetXpath << std::endl;
         int numberOfErrors = 0;
         if (isRepeatedTask) numberOfErrors = executeRepeated(models, simulations, dataSets, masterTaskId, changesToApply);
         else numberOfErrors = executeSingle(models, simulations, dataSets, masterTaskId, resetModel, changesToApply);
@@ -70,26 +71,35 @@ public:
 
     int executeRepeated(std::map<std::string, MyModel>& models, std::map<std::string, MySimulation>& simulations,
                         DataSet& dataSets, const std::string& masterTaskId,
-                        std::vector<MySetValueChange>& changesToApply)
+                        std::vector<MySetValueChange*>& changesToApply)
     {
+        std::cout << "rangeId: " << setValueChanges[0]->rangeId << "; modelReference: " << setValueChanges[0]->modelReference << "; target: " << setValueChanges[0]->targetXpath << std::endl;
+
         int numberOfErrors = 0;
         // FIXME: a quick and dirty initial implementation of repeated tasks
         const MyRange& r = ranges[masterRangeId];
         int rangeIndex = 0;
-        // take a copy of the set value changes that we need to make
-        std::vector<MySetValueChange> localSetValueChanges(setValueChanges);
+        // create the set of changes we need to make in this task
+        std::vector<MySetValueChange*> localSetValueChanges(setValueChanges);
+        // and add them to the existing set of changes
+        localSetValueChanges.insert(localSetValueChanges.end(), changesToApply.begin(), changesToApply.end());
         for (double rangeValue: r.rangeData)
         {
             std::cout << "Execute repeat with master range (" << masterRangeId << ") value: " << rangeValue << std::endl;
             // update the set value changes to have the current values
-            for (MySetValueChange& svc: localSetValueChanges)
+            for (MySetValueChange* svc: localSetValueChanges)
             {
-                const MyRange& rr = ranges[svc.rangeId];
-                svc.currentRangeValue = rr.rangeData[rangeIndex];
-                std::cout << "Setting range: " << svc.rangeId << "; to value: " << svc.currentRangeValue << std::endl;
+                std::cout << "size: " << localSetValueChanges.size() << std::endl;
+                std::cout << "rangeId: " << svc->rangeId << std::endl;
+                // only set the value for ranges we know about, others are already set
+                if (ranges.count(svc->rangeId))
+                {
+                    std::cout << "fot to ghera" << std::endl;
+                    const MyRange& rr = ranges[svc->rangeId];
+                    svc->currentRangeValue = rr.rangeData[rangeIndex];
+                    std::cout << "Setting range: " << svc->rangeId << "; to value: " << svc->currentRangeValue << "; input index = " << svc->inputIndex << std::endl;
+                }
             }
-            // and add them to the existing set of changes
-            localSetValueChanges.insert(localSetValueChanges.end(), changesToApply.begin(), changesToApply.end());
             // and then execute the sub tasks
             for (MyTask& st: subTasks) numberOfErrors += st.execute(models, simulations, dataSets, masterTaskId,
                                                                     resetModel, localSetValueChanges);
@@ -100,7 +110,7 @@ public:
 
     int executeSingle(std::map<std::string, MyModel>& models, std::map<std::string, MySimulation>& simulations,
                       DataSet& dataSets, const std::string& masterTaskId, bool resetModel,
-                      std::vector<MySetValueChange>& changesToApply)
+                      std::vector<MySetValueChange*>& changesToApply)
     {
         int numberOfErrors = 0;
         std::cout << "\n\nExecuting: " << id.c_str() << std::endl;
@@ -139,11 +149,11 @@ public:
                     }
                 }
                 // we also need to access the variables for setting changes as inputs
-                for (MySetValueChange& change: changesToApply)
+                for (MySetValueChange* change: changesToApply)
                 {
-                    if (change.modelReference == modelReference)
+                    if (change->modelReference == modelReference)
                     {
-                        csim->addInputVariable(change);
+                        csim->addInputVariable(*change);
                     }
                 }
                 // initialise the engine
@@ -155,13 +165,13 @@ public:
                 csimList[id] = csim;
             }
             // apply relevant changes
-            for (const MySetValueChange& change: changesToApply)
+            for (const MySetValueChange* change: changesToApply)
             {
                 std::cout << "Change to apply: " << std::endl;
-                if (change.modelReference == modelReference)
+                if (change->modelReference == modelReference)
                 {
-                    std::cout << "Applying set value change, value: " << change.currentRangeValue << std::endl;
-                    csim->applySetValueChange(change);
+                    std::cout << "Applying set value change, value: " << change->currentRangeValue << std::endl;
+                    csim->applySetValueChange(*change);
                 }
             }
             // initialise the simulation
@@ -235,12 +245,16 @@ public:
     std::string masterRangeId;
     std::map<std::string, MyRange> ranges;
     std::vector<MyTask> subTasks;
-    std::vector<MySetValueChange> setValueChanges;
+    std::vector<MySetValueChange*> setValueChanges;
     std::map<std::string, SimulationEngineCsim*> csimList;
 
     ~MyTask()
     {
         for (auto i = csimList.begin(); i != csimList.end(); ++i) delete i->second;
+        for (auto i: setValueChanges)
+        {
+            if (i) delete i;
+        }
     }
 };
 
@@ -325,7 +339,7 @@ public:
             t.id = task->getId();
             if (tasks.count(t.id) == 0)
             {
-                std::cout << "Adding task: " << t.id.c_str() << " to the execution manifest" << std::endl;
+                std::cout << "Adding task: " << t.id << " to the execution manifest" << std::endl;
                 resolveTask(t, task);
                 tasks[t.id] = t;
             }
@@ -407,10 +421,10 @@ public:
             const SedSetValue* current = sedRepeat->getTaskChange(i);
             // FIXME: for now assume that if a range attribute is present we simply want to assign the current range value
             // to the given target. Will ignore the math.
-            MySetValueChange vc;
-            vc.rangeId = current->getRange();
-            vc.modelReference = current->getModelReference();
-            vc.targetXpath = current->getTarget();
+            MySetValueChange* vc = new MySetValueChange();
+            vc->rangeId = current->getRange();
+            vc->modelReference = current->getModelReference();
+            vc->targetXpath = current->getTarget();
             // grab all the namespaces to use when resolving the target xpaths
             const SedBase* c = current;
             while (c)
@@ -421,10 +435,10 @@ public:
                     for (int i = 0; i < nss->getNumNamespaces(); ++i)
                     {
                         std::string prefix = nss->getPrefix(i);
-                        if (vc.namespaces.count(prefix) == 0)
+                        if (vc->namespaces.count(prefix) == 0)
                         {
                             // only want to add a namespace if its not already in there
-                            vc.namespaces[prefix] = nss->getURI(i);
+                            vc->namespaces[prefix] = nss->getURI(i);
                         }
                     }
                 }
@@ -621,7 +635,7 @@ public:
         for (auto i = tasks.begin(); i != tasks.end(); ++i)
         {
             MyTask& t = i->second;
-            std::vector<MySetValueChange> changes;
+            std::vector<MySetValueChange*> changes;
             numberOfErrors += t.execute(models, simulations, dataSets, t.id, false, changes);
         }
         return numberOfErrors;
