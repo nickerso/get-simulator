@@ -5,6 +5,7 @@
 #include <vector>
 
 #include "dataset.hpp"
+#include "utilityclasses.hpp"
 
 class CellmlSimulator;
 class MySetValueChange;
@@ -55,12 +56,13 @@ public:
      * @brief Initialise the simulation.
      * Should be called after the simulation is instantiated and after any changes have been
      * applied to the model.
+     * @param simulation Description of the simulation configuration.
      * @param initialTime The initial value of the variable of integration.
      * @param startTime The final value of the variable of integration, the value at
      * which the user will start collecting output.
      * @return zero on success.
      */
-    int initialiseSimulation(double initialTime, double startTime);
+    int initialiseSimulation(const MySimulation& simulation, double initialTime, double startTime);
 
     /**
      * @brief Fetch the current values of the output variables for this instance of the simulation engine.

@@ -22,15 +22,15 @@ static int f(realtype t, N_Vector y, N_Vector ydot, void *user_data);
 static int check_flag(void *flagvalue, const char *funcname, int opt);
 
 /* Shared Problem Constants */
-#define ATOL RCONST(1.0e-6)
-#define RTOL RCONST(0.0)
+//#define ATOL RCONST(1.0e-6)
+//#define RTOL RCONST(0.0)
 #define ZERO_TOL RCONST(1.0e-7)
 
 // hide the details from the caller?
 class CellmlSimulator
 {
 public:
-    CellmlSimulator() : mCvode(0)
+    CellmlSimulator() : mCvode(0), mMethod(UNKOWN_ALG)
     {
 
     }
@@ -42,7 +42,7 @@ public:
     csim::Model model;
     csim::InitialiseFunction initialiseFunction;
     csim::ModelFunction modelFunction;
-    double voi;
+    double voi, maxStepSize;
     std::vector<double> states, outputs, inputs;
     N_Vector nv_states, nv_rates;
     struct
@@ -51,23 +51,37 @@ public:
         std::vector<double> states, outputs, inputs;
     } cache;
 
-    int createIntegrator(double x0)
+    int createIntegrator(const MySimulation& simulation, double x0)
     {
+        if (simulation.mMethod == "KISAO:0000019") mMethod = CVODE_ALG;
+        else if (simulation.mMethod == "KISAO:0000030") mMethod = EULER_ALG;
         // initialise our variable of integration
         voi = x0;
         // create and initialise our CVODE integrator
-        double reltol = RTOL, abstol = ATOL;
-        mCvode = CVodeCreate(CV_ADAMS, CV_FUNCTIONAL);
-        if(check_flag(mCvode, "CVodeCreate", 0)) return(1);
-        nv_states = N_VMake_Serial(states.size(), states.data());
-        nv_rates = N_VNew_Serial(states.size());
-        int flag = CVodeInit(mCvode, f, x0, nv_states);
-        if(check_flag(&flag, "CVodeInit", 1)) return(1);
-        flag = CVodeSStolerances(mCvode, reltol, abstol);
-        if(check_flag(&flag, "CVodeSStolerances", 1)) return(1);
-        // add our user data
-        flag = CVodeSetUserData(mCvode, (void*)(this));
-        if (check_flag(&flag,"CVodeSetUserData",1)) return(1);
+        //double reltol = RTOL, abstol = ATOL;
+        if (mMethod == CVODE_ALG)
+        {
+            mCvode = CVodeCreate(CV_ADAMS, CV_FUNCTIONAL);
+            if(check_flag(mCvode, "CVodeCreate", 0)) return(1);
+            nv_states = N_VMake_Serial(states.size(), states.data());
+            nv_rates = N_VNew_Serial(states.size());
+            int flag = CVodeInit(mCvode, f, x0, nv_states);
+            if(check_flag(&flag, "CVodeInit", 1)) return(1);
+            flag = CVodeSStolerances(mCvode, simulation.relativeTolerance,
+                                     simulation.absoluteTolerance);
+            if(check_flag(&flag, "CVodeSStolerances", 1)) return(1);
+            flag = CVodeSetMaxStep(mCvode, simulation.maximumStepSize);
+            if(check_flag(&flag, "CVodeSetMaxStep", 1)) return(1);
+            // add our user data
+            flag = CVodeSetUserData(mCvode, (void*)(this));
+            if (check_flag(&flag,"CVodeSetUserData",1)) return(1);
+        }
+        else
+        {
+            nv_states = N_VMake_Serial(states.size(), states.data());
+            nv_rates = N_VNew_Serial(states.size());
+            maxStepSize = simulation.maximumStepSize;
+        }
         return 0;
     }
 
@@ -83,12 +97,31 @@ public:
     {
         if (fabs(step) < ZERO_TOL) return 0; // nothing to do
         double xout = voi + step;
-        int flag = CVodeSetStopTime(mCvode, xout);
-        if (check_flag(&flag,"CVodeSetStopStime",1)) return(1);
-        flag = CVode(mCvode, xout, nv_states, &voi, CV_NORMAL);
-        if (check_flag(&flag,"CVode",1)) return(1);
-        // make sure the non-state variables are at the correct time
-        callModel();
+        if (mMethod == CVODE_ALG)
+        {
+            int flag = CVodeSetStopTime(mCvode, xout);
+            if (check_flag(&flag,"CVodeSetStopStime",1)) return(1);
+            flag = CVode(mCvode, xout, nv_states, &voi, CV_NORMAL);
+            if (check_flag(&flag,"CVode",1)) return(1);
+            // make sure the non-state variables are at the correct time
+            callModel();
+        }
+        else if (mMethod == EULER_ALG)
+        {
+            // FIXME: for now assume always a +'ve direction in stepping
+            while (voi < xout)
+            {
+                voi += maxStepSize;
+                std::cout << "voi = " << voi << "; xout = " << xout << std::endl;
+                if (voi > xout) voi = xout;
+                callModel();
+                for (unsigned i = 0; i < states.size(); ++i)
+                {
+                    NV_Ith_S(nv_states, i) += maxStepSize * NV_Ith_S(nv_rates, i);
+                }
+            }
+            callModel();
+        }
         return 0;
     }
     void checkpointModelValues()
@@ -107,6 +140,12 @@ public:
     }
 private:
     void* mCvode;
+    enum Method {
+        CVODE_ALG = 1,
+        EULER_ALG = 2,
+        UNKOWN_ALG = -1
+    };
+    int mMethod;
 };
 
 SimulationEngineCsim::SimulationEngineCsim()
@@ -182,10 +221,10 @@ int SimulationEngineCsim::instantiateSimulation()
     return 0;
 }
 
-int SimulationEngineCsim::initialiseSimulation(double initialTime, double startTime)
+int SimulationEngineCsim::initialiseSimulation(const MySimulation& simulation, double initialTime, double startTime)
 {
     // create our integrator
-    if (mCsim->createIntegrator(initialTime) != 0)
+    if (mCsim->createIntegrator(simulation, initialTime) != 0)
     {
         std::cerr << "SimulationEngineCsim::initialiseSimulation: error creating CVODE integrator." << std::endl;
         return -1;

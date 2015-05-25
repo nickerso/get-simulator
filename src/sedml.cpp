@@ -165,7 +165,7 @@ public:
                 }
             }
             // initialise the simulation
-            csim->initialiseSimulation(simulation.initialTime, simulation.startTime);
+            csim->initialiseSimulation(simulation, simulation.initialTime, simulation.startTime);
             std::cout << "got to here 2345" << std::endl;
             // set up the results capture
             std::vector<std::vector<double>*> results;
@@ -524,16 +524,44 @@ public:
                 const SedUniformTimeCourse* tc = static_cast<const SedUniformTimeCourse*>(simulation);
                 const SedAlgorithm* alg = tc->getAlgorithm();
                 std::string kisaoId = alg->getKisaoID();
-                if (kisaoId == "KISAO:0000019")
+                if ((kisaoId == "KISAO:0000019") || (kisaoId == "KISAO:0000030"))
                 {
                     // CVODE integration, we can handle that with CSim
                     // FIXME: with CSim-v2 we can now do more, but this will do to get
                     // things working.
-                    s.setSimulationTypeCsim();
+                    s.setSimulationTypeCsim(kisaoId);
                     s.initialTime = tc->getInitialTime();
                     s.startTime = tc->getOutputStartTime();
                     s.endTime = tc->getOutputEndTime();
                     s.numberOfPoints = tc->getNumberOfPoints();
+                    // check for any parameters
+                    unsigned int np = alg->getNumAlgorithmParameters();
+                    for (auto i = 0; i < np; ++i)
+                    {
+                        const SedAlgorithmParameter* ap = alg->getAlgorithmParameter(i);
+                        const std::string& apki = ap->getKisaoID();
+                        if (apki == "KISAO:0000211")
+                        {
+                            // absolute tolerance
+                            s.absoluteTolerance = std::stod(ap->getValue());
+                            std::cout << "resolveSimulation: setting absolute tolerance = "
+                                      << s.absoluteTolerance << std::endl;
+                        }
+                        else if (apki == "KISAO:0000209")
+                        {
+                            // relative tolerance
+                            s.relativeTolerance = std::stod(ap->getValue());
+                            std::cout << "resolveSimulation: setting relative tolerance = "
+                                      << s.relativeTolerance << std::endl;
+                        }
+                        else if (apki == "KISAO:0000467")
+                        {
+                            // maximum step size
+                            s.maximumStepSize = std::stod(ap->getValue());
+                            std::cout << "resolveSimulation: setting max step size = "
+                                      << s.maximumStepSize << std::endl;
+                        }
+                    }
                     simulations[s.id] = s;
                 }
                 else if ((kisaoId == "KISAO:0000000") && alg->isSetAnnotation())

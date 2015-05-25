@@ -20,11 +20,16 @@ public:
     {
         mCsim = false;
         mGet = false;
+        // set some reasonable defaults
+        absoluteTolerance = 1.0e-6;
+        relativeTolerance = 1.0e-8;
+        maximumStepSize = 1.0e-2;
     }
-    void setSimulationTypeCsim()
+    void setSimulationTypeCsim(const std::string& alg = "")
     {
         mCsim = true;
         mGet = false;
+        mMethod = alg;
     }
     bool isCsim() const
     {
@@ -48,7 +53,11 @@ public:
     double endTime;
     int numberOfPoints;
 
-    std::string mMethod; // GET: open-circuit or closed-circuit?
+    std::string mMethod; // GET: open-circuit or closed-circuit? or CSim algorithm ID (KiSAO)
+
+    double absoluteTolerance;
+    double relativeTolerance;
+    double maximumStepSize;
 
 private:
     // FIXME: should use enum? ok for now since there are just two options
