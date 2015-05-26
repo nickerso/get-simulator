@@ -10,6 +10,7 @@
 #include <cvode/cvode.h>             /* main integrator header file */
 #include <nvector/nvector_serial.h>  /* serial N_Vector types, fct. and macros */
 #include <sundials/sundials_types.h> /* definition of realtype */
+#include <cvode/cvode_dense.h>
 
 #include "dataset.hpp"
 #include "simulationenginecsim.hpp"
@@ -61,7 +62,7 @@ public:
         //double reltol = RTOL, abstol = ATOL;
         if (mMethod == CVODE_ALG)
         {
-            mCvode = CVodeCreate(CV_ADAMS, CV_FUNCTIONAL);
+            mCvode = CVodeCreate(CV_BDF, CV_NEWTON);
             if(check_flag(mCvode, "CVodeCreate", 0)) return(1);
             nv_states = N_VMake_Serial(states.size(), states.data());
             nv_rates = N_VNew_Serial(states.size());
@@ -72,6 +73,10 @@ public:
             if(check_flag(&flag, "CVodeSStolerances", 1)) return(1);
             flag = CVodeSetMaxStep(mCvode, simulation.maximumStepSize);
             if(check_flag(&flag, "CVodeSetMaxStep", 1)) return(1);
+            flag = CVodeSetMaxNumSteps(mCvode, simulation.maximumNumberOfSteps);
+            if(check_flag(&flag, "CVodeSetMaxNumSteps", 1)) return(1);
+            flag = CVDense(mCvode, states.size());
+            if(check_flag(&flag, "CVDense", 1)) return(1);
             // add our user data
             flag = CVodeSetUserData(mCvode, (void*)(this));
             if (check_flag(&flag,"CVodeSetUserData",1)) return(1);
@@ -112,7 +117,6 @@ public:
             while (voi < xout)
             {
                 voi += maxStepSize;
-                std::cout << "voi = " << voi << "; xout = " << xout << std::endl;
                 if (voi > xout) voi = xout;
                 callModel();
                 for (unsigned i = 0; i < states.size(); ++i)

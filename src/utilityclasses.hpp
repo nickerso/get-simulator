@@ -24,6 +24,7 @@ public:
         absoluteTolerance = 1.0e-6;
         relativeTolerance = 1.0e-8;
         maximumStepSize = 1.0e-2;
+        maximumNumberOfSteps = 500; // CVODE default?
     }
     void setSimulationTypeCsim(const std::string& alg = "")
     {
@@ -58,6 +59,7 @@ public:
     double absoluteTolerance;
     double relativeTolerance;
     double maximumStepSize;
+    long maximumNumberOfSteps;
 
 private:
     // FIXME: should use enum? ok for now since there are just two options

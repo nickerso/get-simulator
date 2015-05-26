@@ -536,7 +536,7 @@ public:
                     s.numberOfPoints = tc->getNumberOfPoints();
                     // check for any parameters
                     unsigned int np = alg->getNumAlgorithmParameters();
-                    for (auto i = 0; i < np; ++i)
+                    for (unsigned int i = 0; i < np; ++i)
                     {
                         const SedAlgorithmParameter* ap = alg->getAlgorithmParameter(i);
                         const std::string& apki = ap->getKisaoID();
@@ -560,6 +560,13 @@ public:
                             s.maximumStepSize = std::stod(ap->getValue());
                             std::cout << "resolveSimulation: setting max step size = "
                                       << s.maximumStepSize << std::endl;
+                        }
+                        else if (apki == "KISAO:0000415")
+                        {
+                            // maximum number of steps
+                            s.maximumNumberOfSteps = std::stod(ap->getValue());
+                            std::cout << "resolveSimulation: setting max number of steps = "
+                                      << s.maximumNumberOfSteps << std::endl;
                         }
                     }
                     simulations[s.id] = s;
