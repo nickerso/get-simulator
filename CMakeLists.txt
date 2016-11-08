@@ -1,22 +1,29 @@
-# General Epithelial Transport simulation tool
-PROJECT(get-simulator-sedml)
+cmake_minimum_required(VERSION 3.5)
+cmake_policy(SET CMP0048 NEW)
 
-cmake_minimum_required(VERSION 2.8)
+# General Epithelial Transport simulation tool
+PROJECT(get-simulator
+    VERSION 1.0.1
+    LANGUAGES CXX)
 
 # Add in the directory with the FindCellML module
-SET(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${get-simulator-sedml_SOURCE_DIR})
+#SET(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${get-simulator-sedml_SOURCE_DIR})
 
-IF(WIN32)
-    SET(CMAKE_FIND_LIBRARY_SUFFIXES .lib .a ${CMAKE_FIND_LIBRARY_SUFFIXES})
-ELSE(WIN32)
-    SET(CMAKE_FIND_LIBRARY_SUFFIXES .a ${CMAKE_FIND_LIBRARY_SUFFIXES})
-ENDIF(WIN32)
+#IF(WIN32)
+#    SET(CMAKE_FIND_LIBRARY_SUFFIXES .lib .a ${CMAKE_FIND_LIBRARY_SUFFIXES})
+#ELSE(WIN32)
+#    SET(CMAKE_FIND_LIBRARY_SUFFIXES .a ${CMAKE_FIND_LIBRARY_SUFFIXES})
+#ENDIF(WIN32)
 
-FIND_PACKAGE(SUNDIALS REQUIRED)
-find_package(csim CONFIG CONFIGS csim-targets.cmake)
-FIND_PACKAGE(LibCsedml REQUIRED)
-FIND_PACKAGE(LibSBML REQUIRED)
-FIND_PACKAGE(LibXml2 REQUIRED QUIET)
+find_package(sundials_cvode_static CONFIG REQUIRED)
+find_package(sundials_kinsol_static CONFIG REQUIRED)
+find_package(sundials_nvecserial_static CONFIG REQUIRED)
+find_package(sedml-static CONFIG REQUIRED)
+find_package(numl-static CONFIG REQUIRED)
+find_package(sbml-static CONFIG REQUIRED)
+find_package(LibXml2 CONFIG REQUIRED)
+
+find_package(csim CONFIG REQUIRED)
 
 # include(FindCellmlLibraries)
 
@@ -36,10 +43,10 @@ endif()
 # Global includes?
 INCLUDE_DIRECTORIES(
   ${CMAKE_SOURCE_DIR}/src
-  ${CLIBSEDML_INCLUDE_DIRS}
-  ${LIBSBML_INCLUDE_DIRS}
-  ${SUNDIALS_INCLUDE_DIR}
-  ${LIBXML2_INCLUDE_DIR}
+  #${CLIBSEDML_INCLUDE_DIRS}
+  #${LIBSBML_INCLUDE_DIRS}
+  #${SUNDIALS_INCLUDE_DIR}
+  #${LIBXML2_INCLUDE_DIR}
 )
 #/Users/dnic019/shared-folders/resources/std-libs/libsbml/5.8.0/include
 
@@ -79,8 +86,10 @@ set(GET_EXECUTABLE_NAME "get-simulator")
 ADD_EXECUTABLE(${GET_EXECUTABLE_NAME} ${get_SRCS})
 TARGET_LINK_LIBRARIES(${GET_EXECUTABLE_NAME}
   csim
-  ${SUNDIALS_LIBRARIES}
-  ${LIBXML2_LIBRARIES}
+  sundials_cvode_static
+  sundials_kinsol_static
+  sundials_nvecserial_static
+  xml2
   ${PLATFORM_LIBS}
 )
 
@@ -89,10 +98,13 @@ ADD_EXECUTABLE(${GET_SEDML_EXECUTABLE_NAME} ${get_sedml_SRCS})
 TARGET_LINK_LIBRARIES(${GET_SEDML_EXECUTABLE_NAME}
   PUBLIC
   csim
-  ${CLIBSEDML_LIBRARIES}
-  ${LIBSBML_LIBRARIES}
-  ${SUNDIALS_LIBRARIES}
-  ${LIBXML2_LIBRARIES}
+  sedml-static
+  numl-static
+  sbml-static
+  sundials_cvode_static
+  sundials_kinsol_static
+  sundials_nvecserial_static
+  xml2
   ${PLATFORM_LIBS}
 )
 #/Users/dnic019/shared-folders/resources/std-libs/libsbml/5.8.0/lib/libsbml.dylib

@@ -50,7 +50,7 @@ public:
     int checkBob();
 
 private:
-    SedDocument* mSed;
+    libsedml::SedDocument* mSed;
     MyReportList* mReports;
     bool mExecutionPerformed;
 };
