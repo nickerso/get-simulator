@@ -13,9 +13,19 @@
 #include <fstream>
 #include <map>
 
+#include "get_simulator_config.h"
+
 #include "common.hpp"
 #include "utils.hpp"
 #include "sedml.hpp"
+
+static void printVersion()
+{
+    std::cout << "GET Simulator (sed-ml client) version " << GET_SIMULATOR_VERSION_STRING
+              << " (" << GET_SIMULATOR_VERSION << ")\n"
+              << "http://get.readthedocs.io"
+              << std::endl;
+}
 
 static void usage(const char* progName)
 {
@@ -25,6 +35,7 @@ static void usage(const char* progName)
 
 int main(int argc, char* argv[])
 {
+    printVersion();
     if (argc < 2)
     {
         usage(argv[0]);
