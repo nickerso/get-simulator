@@ -90,6 +90,9 @@ SET(get_sedml_SRCS
   ${COMMON_SRCS}
 )
 
+set(create_sedml_SRCS
+    src/create_sedml.cpp)
+
 
 ###
 ## http://www.cmake.org/Wiki/CMake_RPATH_handling
@@ -128,4 +131,20 @@ TARGET_LINK_LIBRARIES(${GET_SEDML_EXECUTABLE_NAME}
   xml2
   ${PLATFORM_LIBS}
 )
+
+set(CREATE_SEDML_EXECUTABLE_NAME "create_sedml")
+ADD_EXECUTABLE(${CREATE_SEDML_EXECUTABLE_NAME} ${create_sedml_SRCS})
+target_include_directories(${CREATE_SEDML_EXECUTABLE_NAME}
+    PRIVATE
+    ${CMAKE_CURRENT_BINARY_DIR}
+)
+TARGET_LINK_LIBRARIES(${CREATE_SEDML_EXECUTABLE_NAME}
+  PUBLIC
+  sedml-static
+  numl-static
+  sbml-static
+  xml2
+  ${PLATFORM_LIBS}
+)
+
 #/Users/dnic019/shared-folders/resources/std-libs/libsbml/5.8.0/lib/libsbml.dylib
