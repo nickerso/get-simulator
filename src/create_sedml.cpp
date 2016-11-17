@@ -42,11 +42,23 @@
 using namespace std;
 LIBSEDML_CPP_NAMESPACE_USE
 
+static std::string SINE_MODEL = "https://models.physiomeproject.org/w/andre/sine/rawfile/46ffb5e4c20e6b4243be2c5b71f5c89744092645/sin_approximations_import.xml";
+
+static std::string defaultNote(const std::string& msg)
+{
+    std::string libsedmlVersion(getLibSEDMLDottedVersion());
+    std::string note = "<p xmlns='http://www.w3.org/1999/xhtml'>This SED-ML document created by GET simulator's `create_sedml` application.</p>";
+    note += "<p xmlns='http://www.w3.org/1999/xhtml'>Created using libSEDML version: " + libsedmlVersion + "</p>";
+    note += "<p xmlns='http://www.w3.org/1999/xhtml'>" + msg + "</p>";
+    return note;
+}
+
 static void createDefaultSBML(const std::string& filename)
 {
     // create the document
     SedDocument doc(1,3);
     doc.setAnnotation("<test xmlns='http://test.org/test/annotation' attribute='test' />");
+    doc.setNotes(defaultNote("Default SBML example from libSEDML create_sedml example"), true);
 
     {
         SedDataDescription* dataDesc =  doc.createDataDescription();
@@ -270,6 +282,164 @@ static void createDefaultSBML(const std::string& filename)
 
 }
 
+static void createBaseSineApproximations(const std::string& filename)
+{
+    /**
+     * Designed to work with the sine approximations import model
+     * from https://models.physiomeproject.org/w/andre/sine
+     *
+     * Here we simply are simulating the model and ploting the results.
+     */
+
+    // create the document
+    SedDocument doc(1,3);
+    doc.setNotes(defaultNote("Base sine-approximations CellML example. See models at: https://models.physiomeproject.org/w/andre/sine"));
+
+    // we want to make sure we define the cellml namespace prefix since we
+    // use it in our XPath expressions
+    SedNamespaces* xmlns = doc.getSedNamespaces();
+    xmlns->addNamespace("http://www.cellml.org/cellml/1.1#", "cellml");
+
+    {
+        // We want to use the sine approximations model
+        SedModel *model = doc.createModel();
+        model->setId("sine_approximations");
+        model->setSource(SINE_MODEL);
+        model->setLanguage("urn:sedml:cellml");
+
+    }
+
+    // create simulation
+    SedUniformTimeCourse* tc = doc.createUniformTimeCourse();
+    tc->setId("simulation");
+    tc->setInitialTime(0.0);
+    tc->setOutputStartTime(0.0);
+    tc->setOutputEndTime(2*M_PI);
+    tc->setNumberOfPoints(100);
+    // need to set the correct KISAO Term
+    SedAlgorithm* alg = tc->createAlgorithm();
+    alg->setKisaoID("KISAO:0000019"); // CVODE
+    SedAlgorithmParameter* algParam = alg->createAlgorithmParameter();
+    algParam ->setNotes("<p xmlns='http://www.w3.org/1999/xhtml'>This is the absolute tolerance</p>");
+    algParam ->setKisaoID("KISAO:0000211");
+    algParam ->setValue("1e-12");
+    // add annotation
+    tc->setAnnotation("<test xmlns='http://test.org/test/simulation/annotation' attribute='uniform time course' />");
+    alg->setAnnotation("<test xmlns='http://test.org/test/simulation/annotation' attribute='algorithm' />");
+
+    // create a task that uses the simulation and the model above
+    SedTask* task = doc.createTask();
+    task->setId("task");
+    task->setModelReference("sine_approximations");
+    task->setSimulationReference("simulation");
+
+    // add a DataGenerator to hold the output for x
+    SedDataGenerator* dg = doc.createDataGenerator();
+    dg->setId("dg_x");
+    dg->setName("x");
+    SedVariable* var = dg->createVariable();
+    var->setId("v_x");
+    var->setName("x");
+    var->setTaskReference("task");
+    var->setTarget("/cellml:model/cellml:component[@name='main']/cellml:variable[@name='x']");
+    dg->setMath(SBML_parseFormula("v_x"));
+
+    // and one for the actual sine function
+    dg = doc.createDataGenerator();
+    dg->setId("dg_actual_sine");
+    dg->setName("actual sine");
+    var = dg->createVariable();
+    var->setId("v_sine");
+    var->setName("sine");
+    var->setTaskReference("task");
+    var->setTarget("/cellml:model/cellml:component[@name='main']/cellml:variable[@name='sin1']");
+    dg->setMath(SBML_parseFormula("v_sine"));
+
+    // and one for the derivative approximation
+    dg = doc.createDataGenerator();
+    dg->setId("dg_derivative_approximation");
+    dg->setName("derivative approximation");
+    var = dg->createVariable();
+    var->setId("v_deriv");
+    var->setName("derivative approximation");
+    var->setTaskReference("task");
+    var->setTarget("/cellml:model/cellml:component[@name='main']/cellml:variable[@name='sin2']");
+    dg->setMath(SBML_parseFormula("v_deriv"));
+
+    // and one for the parabolic approximation
+    dg = doc.createDataGenerator();
+    dg->setId("dg_parabolic_approximation");
+    dg->setName("parabolic approximation");
+    var = dg->createVariable();
+    var->setId("v_parabolic");
+    var->setName("parabolic approximation");
+    var->setTaskReference("task");
+    var->setTarget("/cellml:model/cellml:component[@name='main']/cellml:variable[@name='sin3']");
+    dg->setMath(SBML_parseFormula("v_parabolic"));
+
+    // and one for the error in the derivative approximation
+    dg = doc.createDataGenerator();
+    dg->setId("dg_derivative_error");
+    dg->setName("derivative appoximation error");
+    var = dg->createVariable();
+    var->setId("v_derivative");
+    var->setName("derivative approximation");
+    var->setTaskReference("task");
+    var->setTarget("/cellml:model/cellml:component[@name='main']/cellml:variable[@name='sin2']");
+    var = dg->createVariable();
+    var->setId("v_actual");
+    var->setTaskReference("task");
+    var->setTarget("/cellml:model/cellml:component[@name='main']/cellml:variable[@name='sin1']");
+    dg->setMath(SBML_parseFormula("abs(v_actual - v_derivative)"));
+
+    // and one for the error in the parabolic approximation
+    dg = doc.createDataGenerator();
+    dg->setId("dg_parabolic_error");
+    dg->setName("parabolic appoximation error");
+    var = dg->createVariable();
+    var->setId("v_parabolic");
+    var->setTaskReference("task");
+    var->setTarget("/cellml:model/cellml:component[@name='main']/cellml:variable[@name='sin3']");
+    var = dg->createVariable();
+    var->setId("v_actual");
+    var->setTaskReference("task");
+    var->setTarget("/cellml:model/cellml:component[@name='main']/cellml:variable[@name='sin1']");
+    dg->setMath(SBML_parseFormula("abs(v_actual - v_parabolic)"));
+
+    // add a report
+    SedReport* report = doc.createReport();
+    report->setId("r1");
+    report->setName("report 1");
+    SedDataSet* set = report->createDataSet();
+    set->setId("ds1");
+    set->setLabel("x");
+    set->setDataReference("dg_x");
+    set = report->createDataSet();
+    set->setId("ds2");
+    set->setLabel("actual sine");
+    set->setDataReference("dg_actual_sine");
+    set = report->createDataSet();
+    set->setId("ds3");
+    set->setLabel("derivative approximation");
+    set->setDataReference("dg_derivative_approximation");
+    set = report->createDataSet();
+    set->setId("ds4");
+    set->setLabel("parabolic approximation");
+    set->setDataReference("dg_parabolic_approximation");
+    set = report->createDataSet();
+    set->setId("ds5");
+    set->setLabel("derivative approximation error");
+    set->setDataReference("dg_derivative_error");
+    set = report->createDataSet();
+    set->setId("ds6");
+    set->setLabel("parabolic approximation error");
+    set->setDataReference("dg_parabolic_error");
+
+    // write the document
+    writeSedML(&doc, filename.c_str());
+
+}
+
 int
 main (int argc, char* argv[])
 {
@@ -283,6 +453,9 @@ main (int argc, char* argv[])
     std::string base(argv[1]);
     std::string filename = base + "-sbml.xml";
     createDefaultSBML(filename);
+
+    filename = base + "-base-sine_approximations.xml";
+    createBaseSineApproximations(filename);
 
     return 0;
 }
