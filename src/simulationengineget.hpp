@@ -19,12 +19,12 @@ public:
     int loadModel(const std::string& modelUrl);
 
     /**
-     * @brief Add the given data to this GET instance's list of output variables.
-     * @param data The data to register as an output variable.
+     * @brief Add the given variable to this GET instance's list of output variables.
+     * @param variable The variable to register as an output variable.
      * @param columnIndex The index of this variable in the output array (first index = 1).
      * @return zero on success, non-zero on failure.
      */
-    int addOutputVariable(const MyData& data, int columnIndex);
+    int addOutputVariable(const MyVariable& variable, int columnIndex);
 
     /**
      * @brief Initialise this instance of the GET simulator.

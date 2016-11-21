@@ -24,14 +24,14 @@ public:
     int loadModel(const std::string& modelUrl);
 
     /**
-     * @brief Add the given data to this CSim instance's list of output variables.
-     * This method will update the data object with information on where it is stored in the outputs of the model. All
+     * @brief Add the given variable to this CSim instance's list of output variables.
+     * This method will update the variable object with information on where it is stored in the outputs of the model. All
      * outputs must be flagged prior to initialising the simulation.
      * @sa initialiseSimulation, addOutputVariable
-     * @param data The data to register as an output variable.
+     * @param variable The variable to register as an output variable.
      * @return zero on success, non-zero on failure.
      */
-    int addOutputVariable(MyData& data);
+    int addOutputVariable(MyVariable& variable);
 
     /**
      * @brief Add the required variable from the given set value change to this CSim's list of input variables.

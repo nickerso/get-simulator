@@ -173,21 +173,21 @@ int SimulationEngineCsim::loadModel(const std::string &modelUrl)
     return 0;
 }
 
-int SimulationEngineCsim::addOutputVariable(MyData &data)
+int SimulationEngineCsim::addOutputVariable(MyVariable &variable)
 {
     int numberOfErrors = 0;
-    std::string variableId = mCsim->model.mapXpathToVariableId(data.target, data.namespaces);
-    data.outputIndex = mCsim->model.setVariableAsOutput(variableId);
-    if (data.outputIndex < 0)
+    std::string variableId = mCsim->model.mapXpathToVariableId(variable.target, variable.namespaces);
+    variable.outputIndex = mCsim->model.setVariableAsOutput(variableId);
+    if (variable.outputIndex < 0)
     {
-        std::cerr << "Unable to map output variable target to a variable in the model: " << data.target
-                  << "(id: " << variableId << ")" << "; error code: " << data.outputIndex << std::endl;
+        std::cerr << "Unable to map output variable target to a variable in the model: " << variable.target
+                  << "(id: " << variableId << ")" << "; error code: " << variable.outputIndex << std::endl;
         ++numberOfErrors;
     }
     else
     {
         // make sure the output vector is big enough
-        if (data.outputIndex >= (int)mCsim->outputs.size()) mCsim->outputs.resize(data.outputIndex+1);
+        if (variable.outputIndex >= (int)mCsim->outputs.size()) mCsim->outputs.resize(variable.outputIndex+1);
     }
     return numberOfErrors;
 }

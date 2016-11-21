@@ -34,6 +34,30 @@ static std::string nonEssentialString()
     return value;
 }
 
+static std::map<std::string, std::string> getAllNamespaces(SedBase* current)
+{
+    std::map<std::string, std::string> nsList;
+    // grab all the namespaces, to use when resolving target xpaths
+    while (current)
+    {
+        const XMLNamespaces* nss = current->getNamespaces();
+        if (nss)
+        {
+            for (int i = 0; i < nss->getNumNamespaces(); ++i)
+            {
+                std::string prefix = nss->getPrefix(i);
+                if (nsList.count(prefix) == 0)
+                {
+                    // only want to add a namespace if its not already in there
+                    nsList[prefix] = nss->getURI(i);
+                }
+            }
+        }
+        current = current->getParentSedObject();
+    }
+    return nsList;
+}
+
 class MyRange
 {
 public:
@@ -129,13 +153,19 @@ public:
                 for (auto& di: dataSets)
                 {
                     MyData& d = di.second;
-                    // we only want datasets relevant to this task (the master task)
-                    if (d.taskReference == masterTaskId)
+                    // we only want variables relevant to this task (the master task)
+                    for (auto& variables: d.variables)
                     {
-                        outputVariables.push_back(d.id);
-                        std::cout << "\tAdding dataset: " << d.id.c_str() << "; to the outputs for this task."
-                                  << std::endl;
-                        csim->addOutputVariable(d);
+                        MyVariable& v = variables.second;
+                        if (v.taskReference == masterTaskId)
+                        {
+                            outputVariables.push_back(variables.first);
+                            std::cout << "\tAdding variable: "
+                                      << variables.first
+                                      << "; to the outputs for this task."
+                                      << std::endl;
+                            csim->addOutputVariable(v);
+                        }
                     }
                 }
                 // we also need to access the variables for setting changes as inputs
@@ -172,7 +202,12 @@ public:
             for (auto di = dataSets.begin(); di != dataSets.end(); ++di)
             {
                 MyData& d = di->second;
-                if (d.taskReference == masterTaskId) results.push_back(&(d.data));
+                for (auto& variables: d.variables)
+                {
+                    MyVariable& v = variables.second;
+                    if (v.taskReference == masterTaskId)
+                        results.push_back(&(v.data));
+                }
             }
             std::vector<double> stepResults = csim->getOutputValues();
             int r = 0;
@@ -206,13 +241,18 @@ public:
             for (auto di = dataSets.begin(); di != dataSets.end(); ++di, ++columnIndex)
             {
                 const MyData& d = di->second;
-                // we only want datasets relevant to this task
-                if (d.taskReference == this->id)
+                // we only want variables relevant to this task
+                for (auto& variables: d.variables)
                 {
-                    outputVariables.push_back(d.id);
-                    std::cout << "\tAdding dataset: " << d.id.c_str() << "; to the outputs for this task."
-                              << std::endl;
-                    get.addOutputVariable(d, columnIndex);
+                    const MyVariable& v = variables.second;
+                    if (v.taskReference == this->id)
+                    {
+                        outputVariables.push_back(variables.first);
+                        std::cout << "\tAdding variable: " << variables.first
+                                  << "; to the outputs for this task."
+                                  << std::endl;
+                        get.addOutputVariable(v, columnIndex);
+                    }
                 }
             }
             get.initialiseSimulation();
@@ -274,40 +314,33 @@ public:
             std::cout << "\tdata reference: " << d.dataReference.c_str() << std::endl;
             std::cout << "\tlabel: " << (d.label == "" ? "no label" : d.label.c_str()) << std::endl;
             SedDataGenerator* dg = doc->getDataGenerator(d.dataReference);
-            // FIXME: we're assuming, for now, that there is one variable and that variable is all we care about
-            if (dg->getNumVariables() != 1)
+            if (dg->getNumVariables() < 1)
             {
-                std::cerr << "We can only handle one variable, sorry!" << std::endl;
+                std::cerr << "We need at least one variable, sorry!" << std::endl;
                 ++numberOfErrors;
             }
             else
             {
-                SedVariable* v = dg->getVariable(0);
-                std::string id = v->isSetId() ? v->getId().c_str() : nonEssentialString();
-                d.target = v->getTarget();
-                d.taskReference = v->getTaskReference();
-                // grab all the namespaces to use when resolving the target xpaths
-                SedBase* current = v;
-                while (current)
+                for (int vc=0; vc < dg->getNumVariables(); ++vc)
                 {
-                    const XMLNamespaces* nss = current->getNamespaces();
-                    if (nss)
-                    {
-                        for (int i = 0; i < nss->getNumNamespaces(); ++i)
-                        {
-                            std::string prefix = nss->getPrefix(i);
-                            if (d.namespaces.count(prefix) == 0)
-                            {
-                                // only want to add a namespace if its not already in there
-                                d.namespaces[prefix] = nss->getURI(i);
-                            }
-                        }
-                    }
-                    current = current->getParentSedObject();
+                    SedVariable* v = dg->getVariable(vc);
+                    MyVariable var;
+                    var.target = v->getTarget();
+                    var.taskReference = v->getTaskReference();
+                    var.namespaces = getAllNamespaces(v);
+                    std::cout << "\t\tVariable " << v->getId()
+                              << ": target=" << var.target
+                              << "; task=" << var.taskReference << std::endl;
+                    printStringMap(var.namespaces);
+                    d.variables[v->getId()] = var;
                 }
-                std::cout << "\t\tVariable " << d.id.c_str() << ": target=" << d.target.c_str()
-                     << "; task=" << d.taskReference.c_str() << std::endl;
-                printStringMap(d.namespaces);
+            }
+            for (int pc=0; pc < dg->getNumParameters(); ++pc)
+            {
+                SedParameter* p = dg->getParameter(pc);
+                std::cout << "\t\tParameter " << p->getId()
+                          << ": value=" << p->getValue() << std::endl;
+                d.parameters[p->getId()] = p->getValue();
             }
         }
         return numberOfErrors;
@@ -320,16 +353,20 @@ public:
         {
             std::cout << "DataSet " << i->first.c_str() << ":" << std::endl;
             MyData& d = i->second;
-            const SedTask* task = doc->getTask(d.taskReference);
-            MyTask t;
-            t.id = task->getId();
-            if (tasks.count(t.id) == 0)
+            for (auto& variables: d.variables)
             {
-                std::cout << "Adding task: " << t.id.c_str() << " to the execution manifest" << std::endl;
-                resolveTask(t, task);
-                tasks[t.id] = t;
+                MyVariable& v = variables.second;
+                const SedTask* task = doc->getTask(v.taskReference);
+                MyTask t;
+                t.id = task->getId();
+                if (tasks.count(t.id) == 0)
+                {
+                    std::cout << "Adding task: " << t.id << " to the execution manifest" << std::endl;
+                    resolveTask(t, task);
+                    tasks[t.id] = t;
+                }
+                else std::cout << "Task (" << t.id << ") already in the execution manifest" << std::endl;
             }
-            else std::cout << "Task (" << t.id.c_str() << ") already in the execution manifest" << std::endl;
         }
         return numberOfErrors;
     }
@@ -672,8 +709,10 @@ public:
             if (first) os << ",";
             else first = 1;
             os << d.label;
+#ifdef FIX_SERIALISATION
             int dataLength = d.data.size();
             if ((minDataSize < 0) || (dataLength < minDataSize)) minDataSize = dataLength;
+#endif
         }
         os << std::endl;
         // FIXME: for now assume that all datasets have the same number of results?
@@ -685,7 +724,9 @@ public:
                 MyData d = ds.second;
                 if (first) os << ",";
                 else first = 1;
+#ifdef FIX_SERIALISATION
                 os << d.data[i];
+#endif
             }
             os << std::endl;
         }
