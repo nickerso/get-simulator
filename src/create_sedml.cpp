@@ -406,6 +406,24 @@ static void createBaseSineApproximations(const std::string& filename)
     var->setTarget("/cellml:model/cellml:component[@name='main']/cellml:variable[@name='sin1']");
     dg->setMath(SBML_parseFormula("abs(v_actual - v_parabolic)"));
 
+    // and one which scales things for fun
+    dg = doc.createDataGenerator();
+    dg->setId("dg_scaling");
+    dg->setName("Data generator with parameter");
+    var = dg->createVariable();
+    var->setId("v_sine");
+    var->setTaskReference("task");
+    var->setTarget("/cellml:model/cellml:component[@name='main']/cellml:variable[@name='sin1']");
+    SedParameter* param = dg->createParameter();
+    param->setId("p_scaleFactor");
+    param->setName("Scale factor");
+    param->setValue(1.5);
+    param = dg->createParameter();
+    param->setId("p_offset");
+    param->setName("Offset");
+    param->setValue(-0.5);
+    dg->setMath(SBML_parseFormula("p_offset + (v_sine * p_scaleFactor)"));
+
     // add a report
     SedReport* report = doc.createReport();
     report->setId("r1");
@@ -434,6 +452,10 @@ static void createBaseSineApproximations(const std::string& filename)
     set->setId("ds6");
     set->setLabel("parabolic approximation error");
     set->setDataReference("dg_parabolic_error");
+    set = report->createDataSet();
+    set->setId("ds7");
+    set->setLabel("parameter testing");
+    set->setDataReference("dg_scaling");
 
     // write the document
     writeSedML(&doc, filename.c_str());
