@@ -3,7 +3,7 @@ cmake_policy(SET CMP0048 NEW)
 
 # General Epithelial Transport simulation tool
 PROJECT(get-simulator
-    VERSION 1.0.1
+    VERSION 1.0.2
     LANGUAGES CXX)
 
 # Add in the directory with the FindCellML module
