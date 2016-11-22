@@ -8,7 +8,9 @@
 #include <string>
 #include <sedml/SedTypes.h>
 
-class MyReportList;
+#include "dataset.hpp"
+
+class TaskList;
 
 class Sedml
 {
@@ -51,8 +53,18 @@ public:
 
 private:
     libsedml::SedDocument* mSed;
-    MyReportList* mReports;
+    // the collection of all required data generators
+    DataSet* mDataSet;
+    // the list of all tasks that need to be executed
+    TaskList* mTaskList;
     bool mExecutionPerformed;
+
+    /**
+     * @brief Create our own representation of a data generator.
+     * @param dgId The ID of the required data generator in the current SED-ML document.
+     * @return The created data object.
+     */
+    Data createData(const std::string& dgId);
 };
 
 #endif // SEDML_HPP

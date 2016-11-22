@@ -5,7 +5,9 @@
 #include <map>
 #include <vector>
 
-class MyVariable
+class ASTNode;
+
+class Variable
 {
 public:
     std::string target;
@@ -15,7 +17,7 @@ public:
     int outputIndex; // used by the simulation engine to determine where data comes from
 };
 
-class VariableList : public std::map<std::string, MyVariable>
+class VariableList : public std::map<std::string, Variable>
 {
 };
 
@@ -25,17 +27,16 @@ class ParameterList : public std::map<std::string, double>
 };
 
 // represents the data required for a single data generator
-class MyData
+class Data
 {
 public:
     std::string id;
-    std::string label;
-    std::string dataReference; // the data generator id
     VariableList variables;
     ParameterList parameters;
+    ASTNode* math;
 };
 
-class DataSet : public std::map<std::string, MyData>
+class DataSet : public std::map<std::string, Data>
 {
 };
 

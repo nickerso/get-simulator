@@ -741,10 +741,23 @@ public:
     std::map<std::string, MySimulation> simulations;
 };
 
-class MyReportList : public std::vector<MyReport>
+/**
+ * @brief The TaskList class, a wrapper to manage the tasks that must be
+ * executed.
+ */
+class TaskList : public std::vector<MyReport>
 {
 public:
-    int resolveTasks(SedDocument* doc, const std::string& baseUri)
+    /**
+     * @brief Resolve the tasks required to compute all the data required
+     * by the given data set.
+     * @param doc The SED-ML document handle.
+     * @param dataSet The defined data generators that must be satisfied.
+     * @param baseUri The base URI used to resolve relative references.
+     * @return Non-zero on error.
+     */
+    int resolveTasks(SedDocument* doc, DataSet& dataSet,
+                     const std::string& baseUri)
     {
         int numberOfErrors = 0;
         for (auto i = begin(); i != end(); ++i)
@@ -778,14 +791,16 @@ public:
     }
 };
 
-Sedml::Sedml() : mSed(NULL), mReports(NULL), mExecutionPerformed(false)
+Sedml::Sedml() : mSed(NULL), mDataSet(NULL), mTaskList(NULL),
+    mExecutionPerformed(false)
 {
 }
 
 Sedml::~Sedml()
 {
     if (mSed) delete mSed;
-    if (mReports) delete mReports;
+    if (mDataSet) delete mDataSet;
+    if (mTaskList) delete mTaskList;
 }
 
 int Sedml::parseFromString(const std::string &xmlDocument)
@@ -808,20 +823,67 @@ int Sedml::parseFromString(const std::string &xmlDocument)
     return 0;
 }
 
+Data Sedml::createData(const std::string &dgId)
+{
+    Data data;
+    SedDataGenerator* dg = mSed->getDataGenerator(dgId);
+    if (dg)
+    {
+        data.id = dgId;
+        // no point continuing if no math has been set
+        if (dg->isSetMath() == false) return data;
+        data.math = dg->getMath();
+        for (int vc=0; vc < dg->getNumVariables(); ++vc)
+        {
+            SedVariable* v = dg->getVariable(vc);
+            Variable var;
+            var.target = v->getTarget();
+            var.taskReference = v->getTaskReference();
+            var.namespaces = getAllNamespaces(v);
+            std::cout << "\t\tVariable " << v->getId()
+                      << ": target=" << var.target
+                      << "; task=" << var.taskReference << std::endl;
+            printStringMap(var.namespaces);
+            d.variables[v->getId()] = var;
+        }
+        for (int pc=0; pc < dg->getNumParameters(); ++pc)
+        {
+            SedParameter* p = dg->getParameter(pc);
+            std::cout << "\t\tParameter " << p->getId()
+                      << ": value=" << p->getValue() << std::endl;
+            d.parameters[p->getId()] = p->getValue();
+        }
+    }
+    else
+    {
+        std::cerr << "ERROR: Unable to find data generator with ID: "
+                  << dgId << std::endl;
+    }
+    return data;
+}
+
 int Sedml::buildExecutionManifest(const std::string& baseUri)
 {
     int numberOfErrors = 0;
-    if (mReports) delete mReports;
+    if (mDataSet) delete mDataSet;
+    if (mTaskList) delete mTaskList;
+    // first collect all data generators referenced in all outputs
     for (unsigned int i = 0; i < mSed->getNumOutputs(); ++i)
     {
-      SedOutput* current = mSed->getOutput(i);
-      switch(current->getTypeCode())
-      {
+        mDataSet = new DataSet();
+        SedOutput* current = mSed->getOutput(i);
+        switch(current->getTypeCode())
+        {
         case SEDML_OUTPUT_REPORT:
         {
-          if (!mReports) mReports = new MyReportList();
-          mReports->push_back(MyReport(static_cast<SedReport*>(current)));
-          break;
+            for (unsigned int j = 0; j < mSed->getNumDataSets(); ++j)
+            {
+                const SedDataSet* dataSet = mSed->getDataSet(i);
+                Data data = createData(dataSet->getDataReference());
+                if (mDataSet->count(data.id) == 0)
+                    mDataSet->[data.id] = data;
+            }
+            break;
         }
         case SEDML_OUTPUT_PLOT2D:
         {
@@ -844,12 +906,11 @@ int Sedml::buildExecutionManifest(const std::string& baseUri)
       }
     }
     if (numberOfErrors) return numberOfErrors;
-    if (mReports)
-    {
-        // we have some outputs that we can handle, so make sure we have all the information that we need
-        // to start configuring and running simulations.
-        numberOfErrors = mReports->resolveTasks(mSed, baseUri);
-    }
+    if (mDataSet->empty()) return -1;
+
+    // we have some data generators so can set up the tasks to be executed
+    mTaskList = new TaskList();
+    numberOfErrors = mTaskList->resolveTasks(mSed, mDataSet, baseUri);
 
     return numberOfErrors;
 }
