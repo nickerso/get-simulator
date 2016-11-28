@@ -31,7 +31,7 @@ public:
      * @param variable The variable to register as an output variable.
      * @return zero on success, non-zero on failure.
      */
-    int addOutputVariable(MyVariable& variable);
+    int addOutputVariable(Variable& variable);
 
     /**
      * @brief Add the required variable from the given set value change to this CSim's list of input variables.

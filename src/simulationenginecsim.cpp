@@ -173,7 +173,7 @@ int SimulationEngineCsim::loadModel(const std::string &modelUrl)
     return 0;
 }
 
-int SimulationEngineCsim::addOutputVariable(MyVariable &variable)
+int SimulationEngineCsim::addOutputVariable(Variable& variable)
 {
     int numberOfErrors = 0;
     std::string variableId = mCsim->model.mapXpathToVariableId(variable.target, variable.namespaces);

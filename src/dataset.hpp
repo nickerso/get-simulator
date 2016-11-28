@@ -6,7 +6,10 @@
 #include <vector>
 
 // from libsbml via libSEDML
-class ASTNode;
+namespace libsbml
+{
+    class ASTNode;
+}
 
 class Variable
 {
@@ -39,7 +42,7 @@ public:
     std::string id;
     VariableList variables;
     ParameterList parameters;
-    ASTNode* math;
+    const libsbml::ASTNode* math;
 };
 
 /**

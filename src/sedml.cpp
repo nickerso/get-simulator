@@ -23,6 +23,7 @@ static void printStringMap(StringMap& map)
     }
 }
 
+#if 0
 static std::string nonEssentialString()
 {
     static int counter = 1000;
@@ -33,6 +34,7 @@ static std::string nonEssentialString()
     value += number;
     return value;
 }
+#endif
 
 static std::map<std::string, std::string> getAllNamespaces(SedBase* current)
 {
@@ -82,18 +84,24 @@ public:
      * @param changesToApply
      * @return
      */
-    int execute(std::map<std::string, MyModel>& models, std::map<std::string, MySimulation>& simulations,
-                DataSet& dataSets, const std::string& masterTaskId, bool resetModel,
-                std::vector<MySetValueChange>& changesToApply)
+    int execute(std::map<std::string, MyModel>& models,
+                std::map<std::string, MySimulation>& simulations,
+                DataCollection* dataCollection, const std::string& masterTaskId,
+                bool resetModel, std::vector<MySetValueChange>& changesToApply)
     {
         int numberOfErrors = 0;
-        if (isRepeatedTask) numberOfErrors = executeRepeated(models, simulations, dataSets, masterTaskId, changesToApply);
-        else numberOfErrors = executeSingle(models, simulations, dataSets, masterTaskId, resetModel, changesToApply);
+        if (isRepeatedTask) numberOfErrors = executeRepeated(models, simulations,
+                                                             dataCollection, masterTaskId,
+                                                             changesToApply);
+        else numberOfErrors = executeSingle(models, simulations, dataCollection,
+                                            masterTaskId, resetModel, changesToApply);
         return numberOfErrors;
     }
 
-    int executeRepeated(std::map<std::string, MyModel>& models, std::map<std::string, MySimulation>& simulations,
-                        DataSet& dataSets, const std::string& masterTaskId,
+    int executeRepeated(std::map<std::string, MyModel>& models,
+                        std::map<std::string, MySimulation>& simulations,
+                        DataCollection* dataCollection,
+                        const std::string& masterTaskId,
                         std::vector<MySetValueChange>& changesToApply)
     {
         int numberOfErrors = 0;
@@ -115,16 +123,18 @@ public:
             // and add them to the existing set of changes
             localSetValueChanges.insert(localSetValueChanges.end(), changesToApply.begin(), changesToApply.end());
             // and then execute the sub tasks
-            for (MyTask& st: subTasks) numberOfErrors += st.execute(models, simulations, dataSets, masterTaskId,
-                                                                    resetModel, localSetValueChanges);
+            for (MyTask& st: subTasks) numberOfErrors +=
+                    st.execute(models, simulations, dataCollection, masterTaskId,
+                               resetModel, localSetValueChanges);
             ++rangeIndex;
         }
         return numberOfErrors;
     }
 
-    int executeSingle(std::map<std::string, MyModel>& models, std::map<std::string, MySimulation>& simulations,
-                      DataSet& dataSets, const std::string& masterTaskId, bool resetModel,
-                      std::vector<MySetValueChange>& changesToApply)
+    int executeSingle(std::map<std::string, MyModel>& models,
+                      std::map<std::string, MySimulation>& simulations,
+                      DataCollection* dataCollection, const std::string& masterTaskId,
+                      bool resetModel, std::vector<MySetValueChange>& changesToApply)
     {
         int numberOfErrors = 0;
         std::cout << "\n\nExecuting: " << id.c_str() << std::endl;
@@ -150,13 +160,13 @@ public:
                 csim = new SimulationEngineCsim();
                 csim->loadModel(model.source);
                 // keep track of the data arrays to store the simulation results
-                for (auto& di: dataSets)
+                for (auto& di: *dataCollection)
                 {
-                    MyData& d = di.second;
+                    Data& d = di.second;
                     // we only want variables relevant to this task (the master task)
                     for (auto& variables: d.variables)
                     {
-                        MyVariable& v = variables.second;
+                        Variable& v = variables.second;
                         if (v.taskReference == masterTaskId)
                         {
                             outputVariables.push_back(variables.first);
@@ -195,16 +205,17 @@ public:
                 }
             }
             // initialise the simulation
-            csim->initialiseSimulation(simulation, simulation.initialTime, simulation.startTime);
+            csim->initialiseSimulation(simulation, simulation.initialTime,
+                                       simulation.startTime);
             std::cout << "got to here 2345" << std::endl;
             // set up the results capture
             std::vector<std::vector<double>*> results;
-            for (auto di = dataSets.begin(); di != dataSets.end(); ++di)
+            for (auto di = dataCollection->begin(); di != dataCollection->end(); ++di)
             {
-                MyData& d = di->second;
+                Data& d = di->second;
                 for (auto& variables: d.variables)
                 {
-                    MyVariable& v = variables.second;
+                    Variable& v = variables.second;
                     if (v.taskReference == masterTaskId)
                         results.push_back(&(v.data));
                 }
@@ -238,13 +249,14 @@ public:
             SimulationEngineGet get;
             get.loadModel(model.source);
             int columnIndex = 1;
-            for (auto di = dataSets.begin(); di != dataSets.end(); ++di, ++columnIndex)
+            for (auto di = dataCollection->begin(); di != dataCollection->end();
+                 ++di, ++columnIndex)
             {
-                const MyData& d = di->second;
+                const Data& d = di->second;
                 // we only want variables relevant to this task
                 for (auto& variables: d.variables)
                 {
-                    const MyVariable& v = variables.second;
+                    const Variable& v = variables.second;
                     if (v.taskReference == this->id)
                     {
                         outputVariables.push_back(variables.first);
@@ -291,66 +303,24 @@ public:
 class ExecutionManifest
 {
 public:
-    ExecutionManifest(const SedDocument* doc, DataCollection& dc,
-                      const std::string& baseUri) : sed(doc), dataCollection(data),
+    ExecutionManifest(const SedDocument* doc, DataCollection* dc,
+                      const std::string& baseUri) : sed(doc), dataCollection(dc),
         baseUri(baseUri)
     {
 
     }
 
-    int resolveDataSets(SedDocument* doc)
+    int resolveTasks()
     {
         int numberOfErrors = 0;
-        for (auto i = dataSets.begin(); i != dataSets.end(); ++i)
+        for (auto i = dataCollection->begin(); i != dataCollection->end(); ++i)
         {
-            std::cout << "DataSet " << i->first.c_str() << ":" << std::endl;
-            MyData& d = i->second;
-            std::cout << "\tdata reference: " << d.dataReference.c_str() << std::endl;
-            std::cout << "\tlabel: " << (d.label == "" ? "no label" : d.label.c_str()) << std::endl;
-            SedDataGenerator* dg = doc->getDataGenerator(d.dataReference);
-            if (dg->getNumVariables() < 1)
-            {
-                std::cerr << "We need at least one variable, sorry!" << std::endl;
-                ++numberOfErrors;
-            }
-            else
-            {
-                for (int vc=0; vc < dg->getNumVariables(); ++vc)
-                {
-                    SedVariable* v = dg->getVariable(vc);
-                    MyVariable var;
-                    var.target = v->getTarget();
-                    var.taskReference = v->getTaskReference();
-                    var.namespaces = getAllNamespaces(v);
-                    std::cout << "\t\tVariable " << v->getId()
-                              << ": target=" << var.target
-                              << "; task=" << var.taskReference << std::endl;
-                    printStringMap(var.namespaces);
-                    d.variables[v->getId()] = var;
-                }
-            }
-            for (int pc=0; pc < dg->getNumParameters(); ++pc)
-            {
-                SedParameter* p = dg->getParameter(pc);
-                std::cout << "\t\tParameter " << p->getId()
-                          << ": value=" << p->getValue() << std::endl;
-                d.parameters[p->getId()] = p->getValue();
-            }
-        }
-        return numberOfErrors;
-    }
-
-    int resolveTasks(SedDocument* doc)
-    {
-        int numberOfErrors = 0;
-        for (auto i = dataSets.begin(); i != dataSets.end(); ++i)
-        {
-            std::cout << "DataSet " << i->first.c_str() << ":" << std::endl;
-            MyData& d = i->second;
+            std::cout << "Data " << i->first.c_str() << ":" << std::endl;
+            const Data& d = i->second;
             for (auto& variables: d.variables)
             {
-                MyVariable& v = variables.second;
-                const SedTask* task = doc->getTask(v.taskReference);
+                const Variable& v = variables.second;
+                const SedTask* task = sed->getTask(v.taskReference);
                 MyTask t;
                 t.id = task->getId();
                 if (tasks.count(t.id) == 0)
@@ -480,7 +450,7 @@ public:
         return numberOfErrors;
     }
 
-    int resolveModel(const SedModel* model, const std::string& baseUri)
+    int resolveModel(const SedModel* model)
     {
         int numberOfErrors = 0;
         MyModel m;
@@ -510,33 +480,33 @@ public:
         return numberOfErrors;
     }
 
-    int resolveRepeatedTaskModels(const MyTask& task, const SedDocument* doc, const std::string& baseUri)
+    int resolveRepeatedTaskModels(const MyTask& task)
     {
         int numberOfErrors = 0;
         for (const MyTask& st: task.subTasks)
         {
-            if (st.isRepeatedTask) numberOfErrors += resolveRepeatedTaskModels(st, doc, baseUri);
+            if (st.isRepeatedTask) numberOfErrors += resolveRepeatedTaskModels(st);
             else
             {
                 // normal task
-                const SedModel* model = doc->getModel(st.modelReference);
-                numberOfErrors += resolveModel(model, baseUri);
+                const SedModel* model =sed->getModel(st.modelReference);
+                numberOfErrors += resolveModel(model);
             }
         }
         return numberOfErrors;
     }
 
-    int resolveModels(SedDocument* doc, const std::string& baseUri)
+    int resolveModels()
     {
         int numberOfErrors = 0;
         for (auto i = tasks.begin(); i != tasks.end(); ++i)
         {
             MyTask& task = i->second;
-            if (task.isRepeatedTask) numberOfErrors += resolveRepeatedTaskModels(task, doc, baseUri);
+            if (task.isRepeatedTask) numberOfErrors += resolveRepeatedTaskModels(task);
             else
             {
-                SedModel* model = doc->getModel(task.modelReference);
-                numberOfErrors += resolveModel(model, baseUri);
+                const SedModel* model = sed->getModel(task.modelReference);
+                numberOfErrors += resolveModel(model);
             }
         }
         return numberOfErrors;
@@ -644,23 +614,23 @@ public:
         return numberOfErrors;
     }
 
-    int resolveRepeatedTaskSimulations(const MyTask& task, const SedDocument* doc)
+    int resolveRepeatedTaskSimulations(const MyTask& task)
     {
         int numberOfErrors = 0;
         for (const MyTask& st: task.subTasks)
         {
-            if (st.isRepeatedTask) numberOfErrors += resolveRepeatedTaskSimulations(st, doc);
+            if (st.isRepeatedTask) numberOfErrors += resolveRepeatedTaskSimulations(st);
             else
             {
                 // normal task
-                const SedSimulation* simulation = doc->getSimulation(st.simulationReference);
+                const SedSimulation* simulation = sed->getSimulation(st.simulationReference);
                 numberOfErrors += resolveSimulation(simulation);
             }
         }
         return numberOfErrors;
     }
 
-    int resolveSimulations(SedDocument* doc)
+    int resolveSimulations()
     {
         int numberOfErrors = 0;
         for (auto i = tasks.begin(); i != tasks.end(); ++i)
@@ -668,12 +638,13 @@ public:
             MyTask& task = i->second;
             if (task.isRepeatedTask)
             {
-                numberOfErrors += resolveRepeatedTaskSimulations(task, doc);
+                numberOfErrors += resolveRepeatedTaskSimulations(task);
             }
             else
             {
                 // normal task
-                SedSimulation* simulation = doc->getSimulation(task.simulationReference);
+                const SedSimulation* simulation =
+                        sed->getSimulation(task.simulationReference);
                 numberOfErrors += resolveSimulation(simulation);
             }
         }
@@ -688,7 +659,8 @@ public:
         {
             MyTask& t = i->second;
             std::vector<MySetValueChange> changes;
-            numberOfErrors += t.execute(models, simulations, dataSets, t.id, false, changes);
+            numberOfErrors += t.execute(models, simulations, dataCollection, t.id,
+                                        false, changes);
         }
         return numberOfErrors;
     }
@@ -696,6 +668,7 @@ public:
     int serialise(std::ostream& os)
     {
         int numberOfErrors = 0;
+#ifdef FIX_SERIALISATION
         int first = 0, minDataSize = -1;
         for (const auto& ds: dataSets)
         {
@@ -703,10 +676,8 @@ public:
             if (first) os << ",";
             else first = 1;
             os << d.label;
-#ifdef FIX_SERIALISATION
             int dataLength = d.data.size();
             if ((minDataSize < 0) || (dataLength < minDataSize)) minDataSize = dataLength;
-#endif
         }
         os << std::endl;
         // FIXME: for now assume that all datasets have the same number of results?
@@ -718,17 +689,16 @@ public:
                 MyData d = ds.second;
                 if (first) os << ",";
                 else first = 1;
-#ifdef FIX_SERIALISATION
                 os << d.data[i];
-#endif
             }
             os << std::endl;
         }
+#endif
         return numberOfErrors;
     }
 
     const SedDocument* sed;
-    DataCollection& dataCollection;
+    DataCollection* dataCollection;
     const std::string& baseUri;
     std::map<std::string, MyTask> tasks;
     std::map<std::string, MyModel> models;
@@ -795,8 +765,8 @@ Sedml::Sedml() : mSed(NULL), mDataCollection(NULL), mExecutionManifest(NULL),
 Sedml::~Sedml()
 {
     if (mSed) delete mSed;
-    if (mDataSet) delete mDataSet;
-    if (mTaskList) delete mTaskList;
+    if (mDataCollection) delete mDataCollection;
+    if (mExecutionManifest) delete mExecutionManifest;
 }
 
 int Sedml::parseFromString(const std::string &xmlDocument)
@@ -840,14 +810,14 @@ Data Sedml::createData(const std::string &dgId)
                       << ": target=" << var.target
                       << "; task=" << var.taskReference << std::endl;
             printStringMap(var.namespaces);
-            d.variables[v->getId()] = var;
+            data.variables[v->getId()] = var;
         }
         for (int pc=0; pc < dg->getNumParameters(); ++pc)
         {
             SedParameter* p = dg->getParameter(pc);
             std::cout << "\t\tParameter " << p->getId()
                       << ": value=" << p->getValue() << std::endl;
-            d.parameters[p->getId()] = p->getValue();
+            data.parameters[p->getId()] = p->getValue();
         }
     }
     else
@@ -862,10 +832,11 @@ int Sedml::buildExecutionManifest(const std::string& baseUri)
 {
     int numberOfErrors = 0;
     if (mDataCollection) delete mDataCollection;
-    if (mTaskList) delete mTaskList;
+    if (mExecutionManifest) delete mExecutionManifest;
     // first collect all data generators referenced in all outputs, if needed
     if (mSed->getNumOutputs() == 0) return -2; // no point continuing...
     mDataCollection = new DataCollection;
+    DataCollection& dc = *mDataCollection;
     for (unsigned int i = 0; i < mSed->getNumOutputs(); ++i)
     {
         SedOutput* current = mSed->getOutput(i);
@@ -873,14 +844,16 @@ int Sedml::buildExecutionManifest(const std::string& baseUri)
         {
         case SEDML_OUTPUT_REPORT:
         {
-            SedOutput* r = static_cast<SedOutput*>(current);
+            SedReport* r = static_cast<SedReport*>(current);
             for (unsigned int j = 0; j < r->getNumDataSets(); ++j)
             {
-                const SedDataSet* dataSet = r->getDataSet(i);
-                if (mDataCollection->count(dataSet->getDataReference()) == 0)
+                const SedDataSet* dataSet = r->getDataSet(j);
+                std::cout << "Looking for the data generator: " << dataSet->getDataReference()
+                          << std::endl;
+                if (dc.count(dataSet->getDataReference()) == 0)
                 {
                     // assume valid SED-ML
-                    mDataCollection->[dataSet->getDataReference()] =
+                    dc[dataSet->getDataReference()] =
                             createData(dataSet->getDataReference());
                 }
             }
@@ -892,11 +865,11 @@ int Sedml::buildExecutionManifest(const std::string& baseUri)
             for (unsigned int j = 0; j < p->getNumCurves(); ++j)
             {
                 const SedCurve* curve = p->getCurve(j);
-                if (mDataCollection->count(curve->getXDataReference()) == 0)
-                    mDataCollection->[curve->getXDataReference()] =
+                if (dc.count(curve->getXDataReference()) == 0)
+                    dc[curve->getXDataReference()] =
                             createData(curve->getXDataReference());
-                if (mDataCollection->count(curve->getYDataReference()) == 0)
-                    mDataCollection->[curve->getYDataReference()] =
+                if (dc.count(curve->getYDataReference()) == 0)
+                    dc[curve->getYDataReference()] =
                             createData(curve->getYDataReference());
             }
             break;
@@ -907,14 +880,14 @@ int Sedml::buildExecutionManifest(const std::string& baseUri)
             for (unsigned int j = 0; j < p->getNumSurfaces(); ++j)
             {
                 const SedSurface* surface = p->getSurface(j);
-                if (mDataCollection->count(surface->getXDataReference()) == 0)
-                    mDataCollection->[surface->getXDataReference()] =
+                if (dc.count(surface->getXDataReference()) == 0)
+                    dc[surface->getXDataReference()] =
                             createData(surface->getXDataReference());
-                if (mDataCollection->count(surface->getYDataReference()) == 0)
-                    mDataCollection->[surface->getYDataReference()] =
+                if (dc.count(surface->getYDataReference()) == 0)
+                    dc[surface->getYDataReference()] =
                             createData(surface->getYDataReference());
-                if (mDataCollection->count(surface->getZDataReference()) == 0)
-                    mDataCollection->[surface->getZDataReference()] =
+                if (dc.count(surface->getZDataReference()) == 0)
+                    dc[surface->getZDataReference()] =
                             createData(surface->getZDataReference());
             }
             break;
@@ -931,7 +904,12 @@ int Sedml::buildExecutionManifest(const std::string& baseUri)
     // we have some data generators so can set up the tasks to be executed
     mExecutionManifest = new ExecutionManifest(mSed, mDataCollection, baseUri);
     if (!mExecutionManifest) ++numberOfErrors;
-    //numberOfErrors = resolveTasks(baseUri);
+    else
+    {
+        numberOfErrors += mExecutionManifest->resolveTasks();
+        numberOfErrors += mExecutionManifest->resolveModels();
+        numberOfErrors += mExecutionManifest->resolveSimulations();
+    }
 
     return numberOfErrors;
 }
@@ -939,7 +917,7 @@ int Sedml::buildExecutionManifest(const std::string& baseUri)
 int Sedml::execute()
 {
     int numberOfErrors = 0;
-    if (mReports) numberOfErrors = mReports->execute();
+    if (mExecutionManifest) numberOfErrors = mExecutionManifest->execute();
     mExecutionPerformed = true;
     return numberOfErrors;
 }
@@ -949,7 +927,10 @@ int Sedml::serialiseReports(std::ostream& os)
     int numberOfErrors = 0;
     if (mExecutionPerformed)
     {
+#if 0
         if (mReports) numberOfErrors += mReports->serialise(os);
+#endif
+        std::cout << "This is where the data would go...." << std::endl;
     }
     else
     {

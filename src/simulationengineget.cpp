@@ -53,7 +53,7 @@ int SimulationEngineGet::loadModel(const std::string& modelUrl)
     return -1;
 }
 
-int SimulationEngineGet::addOutputVariable(const MyVariable &variable, int columnIndex)
+int SimulationEngineGet::addOutputVariable(const Variable& variable, int columnIndex)
 {
 #if 0
     int numberOfErrors = 0;

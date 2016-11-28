@@ -24,7 +24,7 @@ public:
      * @param columnIndex The index of this variable in the output array (first index = 1).
      * @return zero on success, non-zero on failure.
      */
-    int addOutputVariable(const MyVariable& variable, int columnIndex);
+    int addOutputVariable(const Variable& variable, int columnIndex);
 
     /**
      * @brief Initialise this instance of the GET simulator.
