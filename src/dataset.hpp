@@ -5,6 +5,7 @@
 #include <map>
 #include <vector>
 
+// from libsbml via libSEDML
 class ASTNode;
 
 class Variable
@@ -26,7 +27,12 @@ class ParameterList : public std::map<std::string, double>
 
 };
 
-// represents the data required for a single data generator
+/**
+ * @brief The Data class, providing the data required for a single SED-ML data generator.
+ *
+ * Here we collect all specified variables and parameters needed to evaluate the given math
+ * for this data generator.
+ */
 class Data
 {
 public:
@@ -36,7 +42,14 @@ public:
     ASTNode* math;
 };
 
-class DataSet : public std::map<std::string, Data>
+/**
+ * @brief A collection of Data objects, indexed by their id.
+ *
+ * Data generators can be used multiple times in a simulation experiment. We use a data
+ * collection to ensure each uniqueness of the collected Data objects, using the SED-ML
+ * requirement that data generator IDs must be unique.
+ */
+class DataCollection : public std::map<std::string, Data>
 {
 };
 

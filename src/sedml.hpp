@@ -10,7 +10,7 @@
 
 #include "dataset.hpp"
 
-class TaskList;
+class ExecutionManifest;
 
 class Sedml
 {
@@ -54,9 +54,9 @@ public:
 private:
     libsedml::SedDocument* mSed;
     // the collection of all required data generators
-    DataSet* mDataSet;
+    DataCollection* mDataCollection;
     // the list of all tasks that need to be executed
-    TaskList* mTaskList;
+    ExecutionManifest* mExecutionManifest;
     bool mExecutionPerformed;
 
     /**

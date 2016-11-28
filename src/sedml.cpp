@@ -284,24 +284,18 @@ public:
     }
 };
 
-
-class MyReport
+/**
+ * @brief The ExecutionManifest class for tracking the tasks that must be executed to satisfy
+ * a given data collection.
+ */
+class ExecutionManifest
 {
 public:
-    MyReport(const SedReport* sedReport)
+    ExecutionManifest(const SedDocument* doc, DataCollection& dc,
+                      const std::string& baseUri) : sed(doc), dataCollection(data),
+        baseUri(baseUri)
     {
-        sed = sedReport;
-        id = sed->getId();
-        for (unsigned int i = 0; i < sed->getNumDataSets(); ++i)
-        {
-            const SedDataSet* dataSet = sed->getDataSet(i);
-            MyData d;
-            // these strings are not required in the SED-ML document, so need to handle them being absent
-            d.id = dataSet->isSetId() ? dataSet->getId() : nonEssentialString();
-            d.label = dataSet->getLabel(); // empty string if no label set
-            d.dataReference = dataSet->getDataReference();
-            dataSets[d.id] = d;
-        }
+
     }
 
     int resolveDataSets(SedDocument* doc)
@@ -733,14 +727,15 @@ public:
         return numberOfErrors;
     }
 
-    const SedReport* sed;
-    std::string id;
-    DataSet dataSets;
+    const SedDocument* sed;
+    DataCollection& dataCollection;
+    const std::string& baseUri;
     std::map<std::string, MyTask> tasks;
     std::map<std::string, MyModel> models;
     std::map<std::string, MySimulation> simulations;
 };
 
+#if 0
 /**
  * @brief The TaskList class, a wrapper to manage the tasks that must be
  * executed.
@@ -790,8 +785,9 @@ public:
         return numberOfErrors;
     }
 };
+#endif
 
-Sedml::Sedml() : mSed(NULL), mDataSet(NULL), mTaskList(NULL),
+Sedml::Sedml() : mSed(NULL), mDataCollection(NULL), mExecutionManifest(NULL),
     mExecutionPerformed(false)
 {
 }
@@ -865,52 +861,77 @@ Data Sedml::createData(const std::string &dgId)
 int Sedml::buildExecutionManifest(const std::string& baseUri)
 {
     int numberOfErrors = 0;
-    if (mDataSet) delete mDataSet;
+    if (mDataCollection) delete mDataCollection;
     if (mTaskList) delete mTaskList;
-    // first collect all data generators referenced in all outputs
+    // first collect all data generators referenced in all outputs, if needed
+    if (mSed->getNumOutputs() == 0) return -2; // no point continuing...
+    mDataCollection = new DataCollection;
     for (unsigned int i = 0; i < mSed->getNumOutputs(); ++i)
     {
-        mDataSet = new DataSet();
         SedOutput* current = mSed->getOutput(i);
         switch(current->getTypeCode())
         {
         case SEDML_OUTPUT_REPORT:
         {
-            for (unsigned int j = 0; j < mSed->getNumDataSets(); ++j)
+            SedOutput* r = static_cast<SedOutput*>(current);
+            for (unsigned int j = 0; j < r->getNumDataSets(); ++j)
             {
-                const SedDataSet* dataSet = mSed->getDataSet(i);
-                Data data = createData(dataSet->getDataReference());
-                if (mDataSet->count(data.id) == 0)
-                    mDataSet->[data.id] = data;
+                const SedDataSet* dataSet = r->getDataSet(i);
+                if (mDataCollection->count(dataSet->getDataReference()) == 0)
+                {
+                    // assume valid SED-ML
+                    mDataCollection->[dataSet->getDataReference()] =
+                            createData(dataSet->getDataReference());
+                }
             }
             break;
         }
         case SEDML_OUTPUT_PLOT2D:
         {
-          SedPlot2D* p = static_cast<SedPlot2D*>(current);
-          std::cout << "\t[unsupported] Plot2d id=" << current->getId() << " numCurves=" << p->getNumCurves() << std::endl;
-          ++numberOfErrors;
-          break;
+            SedPlot2D* p = static_cast<SedPlot2D*>(current);
+            for (unsigned int j = 0; j < p->getNumCurves(); ++j)
+            {
+                const SedCurve* curve = p->getCurve(j);
+                if (mDataCollection->count(curve->getXDataReference()) == 0)
+                    mDataCollection->[curve->getXDataReference()] =
+                            createData(curve->getXDataReference());
+                if (mDataCollection->count(curve->getYDataReference()) == 0)
+                    mDataCollection->[curve->getYDataReference()] =
+                            createData(curve->getYDataReference());
+            }
+            break;
         }
         case SEDML_OUTPUT_PLOT3D:
         {
-          SedPlot3D* p = static_cast<SedPlot3D*>(current);
-          std::cout << "\t[unsupported] Plot3d id=" << current->getId() << " numSurfaces=" << p->getNumSurfaces() << std::endl;
-          ++numberOfErrors;
-          break;
+            SedPlot3D* p = static_cast<SedPlot3D*>(current);
+            for (unsigned int j = 0; j < p->getNumSurfaces(); ++j)
+            {
+                const SedSurface* surface = p->getSurface(j);
+                if (mDataCollection->count(surface->getXDataReference()) == 0)
+                    mDataCollection->[surface->getXDataReference()] =
+                            createData(surface->getXDataReference());
+                if (mDataCollection->count(surface->getYDataReference()) == 0)
+                    mDataCollection->[surface->getYDataReference()] =
+                            createData(surface->getYDataReference());
+                if (mDataCollection->count(surface->getZDataReference()) == 0)
+                    mDataCollection->[surface->getZDataReference()] =
+                            createData(surface->getZDataReference());
+            }
+            break;
         }
         default:
-          std::cout << "\tEncountered unknown output " << current->getId() << std::endl;
-          ++numberOfErrors;
-          break;
-      }
+            std::cout << "\tEncountered unknown output " << current->getId() << std::endl;
+            ++numberOfErrors;
+            break;
+        }
     }
     if (numberOfErrors) return numberOfErrors;
-    if (mDataSet->empty()) return -1;
+    if (mDataCollection->empty()) return -1;
 
     // we have some data generators so can set up the tasks to be executed
-    mTaskList = new TaskList();
-    numberOfErrors = mTaskList->resolveTasks(mSed, mDataSet, baseUri);
+    mExecutionManifest = new ExecutionManifest(mSed, mDataCollection, baseUri);
+    if (!mExecutionManifest) ++numberOfErrors;
+    //numberOfErrors = resolveTasks(baseUri);
 
     return numberOfErrors;
 }
