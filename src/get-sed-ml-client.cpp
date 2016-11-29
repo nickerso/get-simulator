@@ -13,6 +13,8 @@
 #include <fstream>
 #include <map>
 
+#include <csim/model.h>
+
 #include "get_simulator_config.h"
 
 #include "common.hpp"
@@ -29,8 +31,9 @@ static void printVersion()
 
 static void usage(const char* progName)
 {
-    std::cerr << "Usage: " << progName << " <SED-ML document URL> [report results file]" << std::endl;
-    std::cerr << "\tWill output results to stdout if no report results file given" << std::endl;
+    std::cerr << "Usage: " << progName << " <SED-ML document URL> [output base name]"
+              << std::endl;
+    std::cerr << "\tWill output result data to stdout if no output base name given" << std::endl;
 }
 
 int main(int argc, char* argv[])
@@ -41,19 +44,20 @@ int main(int argc, char* argv[])
         usage(argv[0]);
         return -1;
     }
-    std::string url = buildAbsoluteUri(argv[1], "");
-    std::string sedDocumentString = getUrlContent(url);
+    std::string url = buildAbsoluteUri(argv[1]);
+    std::string sedDocumentString = csim::Model::serialiseUrlToString(url, "won't be used",
+                                                                      false);
     if (sedDocumentString.empty())
     {
-        std::cerr << "Unable to load document: " << url.c_str() << std::endl;
+        std::cerr << "Unable to load document: " << url << std::endl;
         usage(argv[0]);
         return -3;
     }
-    //std::cout << "SED-ML document string: [[[" << sedDocumentString.c_str() << "]]]" << std::endl;
+    std::cout << "SED-ML document string: [[[" << sedDocumentString.c_str() << "]]]" << std::endl;
     Sedml sed;
     if (sed.parseFromString(sedDocumentString) != 0)
     {
-        std::cerr << "Error parsing SED-ML document: " << url.c_str() << std::endl;
+        std::cerr << "Error parsing SED-ML document: " << url << std::endl;
         return -1;
     }
     // make sure we should be able to execute all the required tasks. We use the SED-ML document URI

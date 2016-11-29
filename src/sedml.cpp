@@ -76,7 +76,7 @@ public:
     }
 
     /**
-     * @brief Execute the given task
+     * @brief Execute the given task, will ensure the source data is available in the data collection, but won't evaluate the data generator math.
      * @param models
      * @param simulations
      * @param dataSets
@@ -653,7 +653,6 @@ public:
 
     int execute()
     {
-        // FIXME: this will re-execute tasks that occur in more than one report.
         int numberOfErrors = 0;
         for (auto i = tasks.begin(); i != tasks.end(); ++i)
         {
