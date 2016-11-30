@@ -53,18 +53,19 @@ int main(int argc, char* argv[])
         usage(argv[0]);
         return -3;
     }
-    std::cout << "SED-ML document string: [[[" << sedDocumentString.c_str() << "]]]" << std::endl;
+    //std::cout << "SED-ML document string: [[[" << sedDocumentString.c_str() << "]]]" << std::endl;
     Sedml sed;
     if (sed.parseFromString(sedDocumentString) != 0)
     {
         std::cerr << "Error parsing SED-ML document: " << url << std::endl;
         return -1;
     }
-    // make sure we should be able to execute all the required tasks. We use the SED-ML document URI
-    // to resolve any relative URLs referenced as model sources.
+    // make sure we should be able to execute all the required tasks. We use the SED-ML
+    // document URI to resolve any relative URLs referenced as model sources.
     if (sed.buildExecutionManifest(url) != 0)
     {
-        std::cerr << "There were errors building the simulation execution manifest." << std::endl;
+        std::cerr << "There were errors building the simulation execution manifest."
+                  << std::endl;
         return -2;
     }
 
@@ -75,13 +76,20 @@ int main(int argc, char* argv[])
         return -3;
     }
 
+    // and make sure the data is all computed
+    if (sed.computeData() != 0)
+    {
+        std::cerr << "There were some errors computing the required data." << std::endl;
+        return -4
+    }
+
     std::fstream fs;
     if (argc > 2) fs.open(argv[2], std::fstream::out);
     // and generate the reports
     if (sed.serialiseReports(fs.is_open() ? fs : std::cout) != 0)
     {
         std::cerr << "There were some errors serialising the reports." << std::endl;
-        return -4;
+        return -5;
     }
     if (fs.is_open()) fs.close();
 

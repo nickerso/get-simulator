@@ -921,6 +921,23 @@ int Sedml::execute()
     return numberOfErrors;
 }
 
+int Sedml::computeData()
+{
+    if (mDataCollection->empty())
+    {
+        // nothing to do
+        std::cout << "No data generators need computing?" << std::endl;
+        return -1;
+    }
+    for (auto i = mDataCollection->begin(); i != mDataCollection->end(); ++i)
+    {
+        std::cout << "Computing Data " << i->first.c_str() << ":" << std::endl;
+        Data& d = i->second;
+        d.computeData();
+    }
+    return 0;
+}
+
 int Sedml::serialiseReports(std::ostream& os)
 {
     int numberOfErrors = 0;

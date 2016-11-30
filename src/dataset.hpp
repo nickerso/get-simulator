@@ -43,6 +43,18 @@ public:
     VariableList variables;
     ParameterList parameters;
     const libsbml::ASTNode* math;
+    std::vector<double> computedData;
+
+    /**
+     * @brief Compute the data defined by this data generator.
+     *
+     * This method will first clear the @c computedData and then populate it with the
+     * results of evaluating the defined math using the data from the variables and
+     * parmeters.
+     *
+     * @return zero on success.
+     */
+    int computeData();
 };
 
 /**

@@ -44,6 +44,17 @@ public:
     int execute();
 
     /**
+     * @brief Compute the actual data required from the simulation task outputs.
+     *
+     * After executing the tasks in the execution manifest the source data for all
+     * the data generators should be defined. This method will use the specified data
+     * generator math to compute the actual data.
+     *
+     * @return zero on success.
+     */
+    int computeData();
+
+    /**
      * @brief Serialise the reports that we know about, presumably after the simulation tasks have been executed.
      * @return zero on success.
      */
