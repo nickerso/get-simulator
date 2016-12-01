@@ -80,7 +80,7 @@ int main(int argc, char* argv[])
     if (sed.computeData() != 0)
     {
         std::cerr << "There were some errors computing the required data." << std::endl;
-        return -4
+        return -4;
     }
 
     std::fstream fs;
