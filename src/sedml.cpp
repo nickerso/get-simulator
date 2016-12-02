@@ -143,7 +143,7 @@ public:
         std::cout << "\tnumber of changes to apply = " << changesToApply.size() << std::endl;
         const MyModel& model = models[modelReference];
         const MySimulation& simulation = simulations[simulationReference];
-        std::vector<std::string> outputVariables;
+        std::vector<Variable*> outputVariables;
         if (simulation.isCsim())
         {
             std::cout << "\trunning simulation task using CSim..." << std::endl;
@@ -159,7 +159,7 @@ public:
             {
                 csim = new SimulationEngineCsim();
                 csim->loadModel(model.source);
-                // keep track of the data arrays to store the simulation results
+                // flag output variables for capture
                 for (auto& di: *dataCollection)
                 {
                     Data& d = di.second;
@@ -169,11 +169,11 @@ public:
                         Variable& v = variables.second;
                         if (v.taskReference == masterTaskId)
                         {
-                            outputVariables.push_back(variables.first);
                             std::cout << "\tAdding variable: "
                                       << variables.first
                                       << "; to the outputs for this task."
                                       << std::endl;
+                            // this also sets the variable's index in the output vector
                             csim->addOutputVariable(v);
                         }
                     }
@@ -204,26 +204,30 @@ public:
                     csim->applySetValueChange(change);
                 }
             }
-            // initialise the simulation
-            csim->initialiseSimulation(simulation, simulation.initialTime,
-                                       simulation.startTime);
-            std::cout << "got to here 2345" << std::endl;
-            // set up the results capture
-            std::vector<std::vector<double>*> results;
-            for (auto di = dataCollection->begin(); di != dataCollection->end(); ++di)
+            // and grab outputs
+            for (auto& di: *dataCollection)
             {
-                Data& d = di->second;
+                Data& d = di.second;
                 for (auto& variables: d.variables)
                 {
                     Variable& v = variables.second;
                     if (v.taskReference == masterTaskId)
-                        results.push_back(&(v.data));
+                    {
+                        outputVariables.push_back(&v);
+                    }
                 }
             }
+            // initialise the simulation
+            csim->initialiseSimulation(simulation, simulation.initialTime,
+                                       simulation.startTime);
+            std::cout << "got to here 2345" << std::endl;
+
             std::vector<double> stepResults = csim->getOutputValues();
-            int r = 0;
-            for (auto j = stepResults.begin(); j != stepResults.end(); ++j, ++r)
-                results[r]->push_back(*j);
+            // save results
+            for (Variable* ov: outputVariables)
+            {
+                ov->data.push_back(stepResults[ov->outputIndex]);
+            }
             std::cout << "Got to here 1234" << std::endl;
             double dt = (simulation.endTime - simulation.startTime) / simulation.numberOfPoints;
             double time = simulation.startTime;
@@ -232,9 +236,11 @@ public:
                 if (csim->simulateModelOneStep(dt) == 0)
                 {
                     stepResults = csim->getOutputValues();
-                    r = 0;
-                    for (auto j = stepResults.begin(); j != stepResults.end(); ++j, ++r)
-                        results[r]->push_back(*j);
+                    // save results
+                    for (Variable* ov: outputVariables)
+                    {
+                        ov->data.push_back(stepResults[ov->outputIndex]);
+                    }
                 }
                 else
                 {
@@ -259,7 +265,7 @@ public:
                     const Variable& v = variables.second;
                     if (v.taskReference == this->id)
                     {
-                        outputVariables.push_back(variables.first);
+                        //outputVariables.push_back(variables.first);
                         std::cout << "\tAdding variable: " << variables.first
                                   << "; to the outputs for this task."
                                   << std::endl;
@@ -757,7 +763,7 @@ public:
 #endif
 
 Sedml::Sedml() : mSed(NULL), mDataCollection(NULL), mExecutionManifest(NULL),
-    mExecutionPerformed(false)
+    mExecutionPerformed(false), mDataComputed(false)
 {
 }
 
@@ -923,6 +929,12 @@ int Sedml::execute()
 
 int Sedml::computeData()
 {
+    if (!mExecutionPerformed)
+    {
+        std::cerr << "Can't compute data before executing the simulation experiment."
+                  << std::endl;
+        return -2;
+    }
     if (mDataCollection->empty())
     {
         // nothing to do
@@ -935,17 +947,106 @@ int Sedml::computeData()
         Data& d = i->second;
         d.computeData();
     }
+    mDataComputed = true;
     return 0;
 }
 
+int Sedml::serialiseOutputs(const std::string &baseOutputName)
+{
+    if (!mDataComputed)
+    {
+        std::cerr << "Data must be computed before outputs can be serialised."
+                  << std::endl;
+        return -1;
+    }
+    int numberOfErrors = 0;
+    for (unsigned int i = 0; i < mSed->getNumOutputs(); ++i)
+    {
+        SedOutput* current = mSed->getOutput(i);
+        switch(current->getTypeCode())
+        {
+        case SEDML_OUTPUT_REPORT:
+        {
+            SedReport* r = static_cast<SedReport*>(current);
+            // collect the data to be output
+            std::vector<DataCollection::iterator> line;
+            int maxDataLength = 0;
+            for (unsigned int j = 0; j < r->getNumDataSets(); ++j)
+            {
+                const SedDataSet* dataSet = r->getDataSet(j);
+                line.push_back(mDataCollection->find(dataSet->getDataReference()));
+                std::cout << "Got data: " << line.back()->second.id << "; for a report." << std::endl;
+                if (line.back()->second.computedData.size() > maxDataLength)
+                    maxDataLength = line.back()->second.computedData.size();
+                std::cout << "maxDataLength = " << maxDataLength << std::endl;
+            }
+            for (unsigned int j=0; j<maxDataLength; ++j)
+            {
+                for (unsigned int k=0; k < line.size(); ++k)
+                {
+                    double data;
+                    if (line[k]->second.computedData.size() > j)
+                        data = line[k]->second.computedData[j];
+                    else data = line[k]->second.computedData.back();
+                    std::cout << data << ", ";
+                }
+                std::cout << std::endl;
+            }
+            break;
+        }
+        case SEDML_OUTPUT_PLOT2D:
+        {
+#if 0
+            SedPlot2D* p = static_cast<SedPlot2D*>(current);
+            for (unsigned int j = 0; j < p->getNumCurves(); ++j)
+            {
+                const SedCurve* curve = p->getCurve(j);
+                if (dc.count(curve->getXDataReference()) == 0)
+                    dc[curve->getXDataReference()] =
+                            createData(curve->getXDataReference());
+                if (dc.count(curve->getYDataReference()) == 0)
+                    dc[curve->getYDataReference()] =
+                            createData(curve->getYDataReference());
+            }
+#endif
+            break;
+        }
+        case SEDML_OUTPUT_PLOT3D:
+        {
+#if 0
+            SedPlot3D* p = static_cast<SedPlot3D*>(current);
+            for (unsigned int j = 0; j < p->getNumSurfaces(); ++j)
+            {
+                const SedSurface* surface = p->getSurface(j);
+                if (dc.count(surface->getXDataReference()) == 0)
+                    dc[surface->getXDataReference()] =
+                            createData(surface->getXDataReference());
+                if (dc.count(surface->getYDataReference()) == 0)
+                    dc[surface->getYDataReference()] =
+                            createData(surface->getYDataReference());
+                if (dc.count(surface->getZDataReference()) == 0)
+                    dc[surface->getZDataReference()] =
+                            createData(surface->getZDataReference());
+            }
+#endif
+            break;
+        }
+        default:
+            std::cout << "\tEncountered unknown output " << current->getId() << std::endl;
+            ++numberOfErrors;
+            break;
+        }
+    }
+    return numberOfErrors;
+}
+
+#if 0
 int Sedml::serialiseReports(std::ostream& os)
 {
     int numberOfErrors = 0;
     if (mExecutionPerformed)
     {
-#if 0
         if (mReports) numberOfErrors += mReports->serialise(os);
-#endif
         std::cout << "This is where the data would go...." << std::endl;
     }
     else
@@ -955,6 +1056,7 @@ int Sedml::serialiseReports(std::ostream& os)
     }
     return numberOfErrors;
 }
+#endif
 
 int Sedml::checkBob()
 {

@@ -83,6 +83,7 @@ int main(int argc, char* argv[])
         return -4;
     }
 
+#if 0
     std::fstream fs;
     if (argc > 2) fs.open(argv[2], std::fstream::out);
     // and generate the reports
@@ -92,6 +93,16 @@ int main(int argc, char* argv[])
         return -5;
     }
     if (fs.is_open()) fs.close();
+#endif
+
+    std::string baseOutputName = "";
+    if (argc > 2) baseOutputName = std::string(argv[2]);
+    if (sed.serialiseOutputs(baseOutputName) != 0)
+    {
+        std::cerr << "There were some errors serialising the outputs." << std::endl;
+        return -6;
+    }
+
 
     //sed.checkBob();
 

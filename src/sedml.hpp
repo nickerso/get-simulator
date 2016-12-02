@@ -54,11 +54,26 @@ public:
      */
     int computeData();
 
+#if 0
     /**
      * @brief Serialise the reports that we know about, presumably after the simulation tasks have been executed.
      * @return zero on success.
      */
     int serialiseReports(std::ostream&);
+#endif
+
+    /**
+     * @brief Serialise the outputs from this simulation experiment.
+     *
+     * Separate output files will be generated for each output in the simulation experiment. The
+     * file name will be generated using the provided @p baseOutputName and the output's ID in
+     * the SED-ML, if given.
+     *
+     * @param baseOutputName The base filename used when creating the individual output files. An
+     * empty string @c ("") indicates data should be streamed to the terminal.
+     * @return zero on success.
+     */
+    int serialiseOutputs(const std::string& baseOutputName);
 
     int checkBob();
 
@@ -69,6 +84,7 @@ private:
     // the list of all tasks that need to be executed
     ExecutionManifest* mExecutionManifest;
     bool mExecutionPerformed;
+    bool mDataComputed;
 
     /**
      * @brief Create our own representation of a data generator.

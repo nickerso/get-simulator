@@ -178,6 +178,8 @@ int SimulationEngineCsim::addOutputVariable(Variable& variable)
     int numberOfErrors = 0;
     std::string variableId = mCsim->model.mapXpathToVariableId(variable.target, variable.namespaces);
     variable.outputIndex = mCsim->model.setVariableAsOutput(variableId);
+    std::cout << "*** addOutputVariable - variable index: "
+              << variable.outputIndex << std::endl;
     if (variable.outputIndex < 0)
     {
         std::cerr << "Unable to map output variable target to a variable in the model: " << variable.target

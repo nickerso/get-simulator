@@ -348,8 +348,11 @@ static std::vector<double> Evaluate(const libsbml::ASTNode* tree,
     if ((tree->getType() == libsbml::AST_NAME)
         && (variables.count(tree->getName())))
     {
+        std::cout << "DG is just variable: " << tree->getName() << std::endl;
         const Variable& variable = variables.at(tree->getName());
-        return variable.data;
+        std::vector<double> result(variable.data);
+        std::cout << "DG data size: " << result.size() << std::endl;
+        return result;
     }
 
     int length = 0;
@@ -357,6 +360,7 @@ static std::vector<double> Evaluate(const libsbml::ASTNode* tree,
     {
         if (p.second.data.size() > length) length = p.second.data.size();
     }
+    std::cout << "length = " << length << std::endl;
 
     std::vector<double> result(length);
     for (int i = 0; i < length; ++i)
