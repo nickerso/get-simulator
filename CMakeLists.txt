@@ -41,7 +41,9 @@ find_package(LibXml2 CONFIG REQUIRED)
 
 find_package(csim CONFIG REQUIRED)
 
-# include(FindCellmlLibraries)
+# this is not part of get-configured yet...and had to hack the brew installed
+# cmake config to get the include path added.
+find_package(plplot CONFIG REQUIRED)
 
 set(PLATFORM_LIBS "curl")
 
@@ -83,6 +85,7 @@ SET(get_SRCS
 )
 SET(get_sedml_SRCS
   src/sedml.cpp
+  src/plotting.cpp
   src/dataset.cpp
   src/simulationenginecsim.cpp
   src/simulationengineget.cpp
@@ -129,6 +132,7 @@ TARGET_LINK_LIBRARIES(${GET_SEDML_EXECUTABLE_NAME}
   sundials_kinsol_static
   sundials_nvecserial_static
   xml2
+  plplotcxx
   ${PLATFORM_LIBS}
 )
 

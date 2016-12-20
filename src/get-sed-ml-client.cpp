@@ -36,7 +36,7 @@ static void usage(const char* progName)
     std::cerr << "\tWill output result data to stdout if no output base name given" << std::endl;
 }
 
-int main(int argc, char* argv[])
+int main(int argc, const char* argv[])
 {
     printVersion();
     if (argc < 2)
@@ -102,7 +102,6 @@ int main(int argc, char* argv[])
         std::cerr << "There were some errors serialising the outputs." << std::endl;
         return -6;
     }
-
 
     //sed.checkBob();
 

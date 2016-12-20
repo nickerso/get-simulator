@@ -8,6 +8,7 @@
 #include "utils.hpp"
 #include "sedml.hpp"
 #include "dataset.hpp"
+#include "plotting.hpp"
 #include "simulationenginecsim.hpp"
 #include "simulationengineget.hpp"
 #include "utilityclasses.hpp"
@@ -996,19 +997,18 @@ int Sedml::serialiseOutputs(const std::string &baseOutputName)
         }
         case SEDML_OUTPUT_PLOT2D:
         {
-#if 0
             SedPlot2D* p = static_cast<SedPlot2D*>(current);
+            // collect the data to be output
+            CurveData data;
             for (unsigned int j = 0; j < p->getNumCurves(); ++j)
             {
                 const SedCurve* curve = p->getCurve(j);
-                if (dc.count(curve->getXDataReference()) == 0)
-                    dc[curve->getXDataReference()] =
-                            createData(curve->getXDataReference());
-                if (dc.count(curve->getYDataReference()) == 0)
-                    dc[curve->getYDataReference()] =
-                            createData(curve->getYDataReference());
+                data.push_back(XYpair(
+                            mDataCollection->find(curve->getXDataReference()),
+                            mDataCollection->find(curve->getYDataReference())));
+                std::cout << "Got data: " << data.back().first->second.id << " vs " << data.back().second->second.id << "; for a 2D plot." << std::endl;
             }
-#endif
+            plot2d(data);
             break;
         }
         case SEDML_OUTPUT_PLOT3D:

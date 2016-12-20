@@ -457,6 +457,35 @@ static void createBaseSineApproximations(const std::string& filename)
     set->setLabel("parameter testing");
     set->setDataReference("dg_scaling");
 
+    // add a 2d plot
+    SedPlot2D* plot = doc.createPlot2D();
+    plot->setId("p1");
+    plot->setName("Sine Timecourses");
+    plot->setLogX(false);
+    plot->setLogY(false);
+    SedCurve* curve = plot->createCurve();
+    curve->setId("c1");
+    curve->setName("Actual sine");
+    curve->setLogX(false);
+    curve->setLogY(false);
+    curve->setXDataReference("dg_x");
+    curve->setYDataReference("dg_actual_sine");
+    curve = plot->createCurve();
+    curve->setId("c2");
+    curve->setName("Derivative approximation");
+    curve->setLogX(false);
+    curve->setLogY(false);
+    curve->setXDataReference("dg_x");
+    curve->setYDataReference("dg_derivative_approximation");
+    curve = plot->createCurve();
+    curve->setId("c3");
+    curve->setName("Parabolic approximation");
+    curve->setLogX(false);
+    curve->setLogY(false);
+    curve->setXDataReference("dg_x");
+    curve->setYDataReference("dg_parabolic_approximation");
+
+
     // write the document
     writeSedML(&doc, filename.c_str());
 
