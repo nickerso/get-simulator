@@ -5,11 +5,7 @@
 
 #include "plotting.hpp"
 
-#ifdef PL_USE_NAMESPACE
-using namespace std;
-#endif
-
-int plot2d(const CurveData& data)
+int plot2d(const CurveData& data, const std::string& baseOutputName)
 {
     PLFLT xmin = 0., xmax = 0., ymin = 0., ymax = 0.;
 
@@ -30,6 +26,11 @@ int plot2d(const CurveData& data)
 
     // Parse and process command line arguments
     //pls->parseopts( &argc, argv, PL_PARSE_FULL );
+
+    pls->sdev("svg");
+    std::string filename = baseOutputName;
+    filename += "bob.svg";
+    pls->sfnam(filename.c_str());
 
     // Initialize plplot
     pls->init();
