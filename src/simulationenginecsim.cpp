@@ -163,11 +163,11 @@ SimulationEngineCsim::~SimulationEngineCsim()
     if (mCsim) delete mCsim;
 }
 
-int SimulationEngineCsim::loadModel(const std::string &modelUrl)
+int SimulationEngineCsim::loadModel(const std::string &modelXml)
 {
-    if (mCsim->model.loadCellmlModel(modelUrl) != csim::CSIM_OK)
+    if (mCsim->model.loadCellmlModelFromString(modelXml) != csim::CSIM_OK)
     {
-        std::cerr << "Error loading CellML model: " << modelUrl << std::endl;
+        std::cerr << "Error loading CellML model: " << modelXml << std::endl;
         return -2;
     }
     return 0;

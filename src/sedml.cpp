@@ -5,6 +5,8 @@
 
 #include <sbml/SBMLTypes.h>
 
+#include <csim/model.h>
+
 #include "utils.hpp"
 #include "sedml.hpp"
 #include "dataset.hpp"
@@ -159,7 +161,7 @@ public:
             else
             {
                 csim = new SimulationEngineCsim();
-                csim->loadModel(model.source);
+                csim->loadModel(model.modelXML);
                 // flag output variables for capture
                 for (auto& di: *dataCollection)
                 {
@@ -470,11 +472,32 @@ public:
             if (language.find("cellml"))
             {
                 m.name = model->getName(); // empty string is ok
-                // FIXME: assuming here that the source is always a cellml model, but could be a reference to
-                // another model? or would that be a modelReference?
-                m.source = buildAbsoluteUri(model->getSource(), baseUri);
-                std::cout << "\tModel source: " << model->getSource().c_str() << std::endl;
-                std::cout << "\tModel URL: " << m.source.c_str() << std::endl;
+                // check if the model refers to another model that we want to reuse
+                const SedModel* sourceModel = sed->getModel(model->getSource());
+                if (sourceModel)
+                {
+                    // is it already resolved?
+                    const std::string& sourceModelId = sourceModel->getId();
+                    if (models.count(sourceModelId) == 0)
+                        numberOfErrors += resolveModel(sourceModel);
+                    if (numberOfErrors != 0) return numberOfErrors;
+                    m.source = models[sourceModelId].source;
+                    m.modelXML = models[sourceModelId].modelXML;
+                }
+                else
+                {
+                    m.source = buildAbsoluteUri(model->getSource(), baseUri);
+                    m.modelXML = csim::Model::serialiseUrlToString(m.source, m.source, true);
+                    if (m.modelXML.length() == 0) return 1;
+                }
+                std::cout << "\tModel source: " << model->getSource() << std::endl;
+                std::cout << "\tModel URL: " << m.source << std::endl;
+                // apply any changes
+                for (unsigned int i = 0; i < model->getNumChanges(); ++i)
+                {
+                    std::cout << "Got to here :)" << std::endl;
+                    return 999;
+                }
                 models[m.id] = m;
             }
             else

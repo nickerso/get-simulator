@@ -18,10 +18,11 @@ public:
 
     /**
      * @brief Load the model from the given <modelUrl> into this CSim simulation engine.
-     * @param modelUrl The URL of the CellML model to load.
+     * @param modelXml An XML string defining the CellML model (expected to have
+     * the xml:base property set if required).
      * @return zero on success, non-zero on failure.
      */
-    int loadModel(const std::string& modelUrl);
+    int loadModel(const std::string& modelXML);
 
     /**
      * @brief Add the given variable to this CSim instance's list of output variables.

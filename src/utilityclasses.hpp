@@ -10,7 +10,11 @@ class MyModel
 public:
     std::string id;
     std::string name;
+    // this is the URL source of the actual CellML model being used.
     std::string source;
+    // this is the actual model XML, which originates from the source URL
+    // and is updated to reflect any changes applied to the model
+    std::string modelXML;
 };
 
 class MySimulation
