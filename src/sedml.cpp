@@ -1,5 +1,6 @@
 #include <string>
 #include <iostream>
+#include <fstream>
 #include <vector>
 #include <map>
 
@@ -993,17 +994,40 @@ int Sedml::serialiseOutputs(const std::string &baseOutputName)
         {
             SedReport* r = static_cast<SedReport*>(current);
             // collect the data to be output
+            std::vector<std::string> header;
             std::vector<DataCollection::iterator> line;
             int maxDataLength = 0;
             for (unsigned int j = 0; j < r->getNumDataSets(); ++j)
             {
                 const SedDataSet* dataSet = r->getDataSet(j);
                 line.push_back(mDataCollection->find(dataSet->getDataReference()));
+                std::string label = dataSet->getLabel();
+                if (label.empty()) label = line.back()->second.id;
+                header.push_back(label);
                 std::cout << "Got data: " << line.back()->second.id << "; for a report." << std::endl;
                 if (line.back()->second.computedData.size() > maxDataLength)
                     maxDataLength = line.back()->second.computedData.size();
                 std::cout << "maxDataLength = " << maxDataLength << std::endl;
             }
+            // set output target
+            std::streambuf* buf;
+            std::ofstream of;
+            if (baseOutputName.empty())
+            {
+                buf = std::cout.rdbuf();
+            }
+            else
+            {
+                std::string filename = baseOutputName;
+                filename += r->getId();
+                filename += ".csv";
+                of.open(filename);
+                buf = of.rdbuf();
+            }
+            std::ostream out(buf);
+            // header line
+            for (unsigned int k=0; k<header.size(); ++k) out << header[k] << ", ";
+            out << std::endl;
             for (unsigned int j=0; j<maxDataLength; ++j)
             {
                 for (unsigned int k=0; k < line.size(); ++k)
@@ -1012,9 +1036,9 @@ int Sedml::serialiseOutputs(const std::string &baseOutputName)
                     if (line[k]->second.computedData.size() > j)
                         data = line[k]->second.computedData[j];
                     else data = line[k]->second.computedData.back();
-                    std::cout << data << ", ";
+                    out << data << ", ";
                 }
-                std::cout << std::endl;
+                out << std::endl;
             }
             break;
         }
