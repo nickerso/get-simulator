@@ -7,7 +7,7 @@
 #include "dataset.hpp"
 
 typedef std::pair<DataCollection::iterator, DataCollection::iterator> XYpair;
-typedef std::vector<XYpair> CurveData;
+typedef std::map<std::string, XYpair> CurveData;
 
 int plot2d(const CurveData& data, const std::string& baseOutputName);
 

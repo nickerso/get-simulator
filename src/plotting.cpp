@@ -1,14 +1,17 @@
 #include <iostream>
 
 // common includes
-#include <plplot/plstream.h>
+#include <json/json.h>
 
 #include "plotting.hpp"
 
-int plot2d(const CurveData& data, const std::string& baseOutputName)
+int plot2d(const CurveData& curveData, const std::string& baseOutputName)
 {
-    PLFLT xmin = 0., xmax = 0., ymin = 0., ymax = 0.;
-
+    for (const auto& c: curveData)
+    {
+        std::cout << "Creating curve: " << c.first << std::endl;
+    }
+#if 0
     // Prepare data to be plotted.
     const XYpair& c = data.back();
     int n = c.first->second.computedData.size();
@@ -22,29 +25,11 @@ int plot2d(const CurveData& data, const std::string& baseOutputName)
         ymax = y > ymax ? y : ymax;
     }
 
-    plstream* pls = new plstream();
-
-    // Parse and process command line arguments
-    //pls->parseopts( &argc, argv, PL_PARSE_FULL );
-
-    pls->sdev("svg");
     std::string filename = baseOutputName;
     filename += "bob.svg";
-    pls->sfnam(filename.c_str());
-
-    // Initialize plplot
-    pls->init();
-
-    // Create a labelled box to hold the plot.
-    pls->env(xmin, xmax, ymin, ymax, 0, 0);
-    pls->lab("x", "y=100 x#u2#d", "Simple PLplot demo of a 2D line plot");
-
     // Plot the data that was prepared above.
     pls->line(n, (PLFLT*)(c.first->second.computedData.data()),
               (PLFLT*)(c.second->second.computedData.data()));
-
-    // In C++ we don't call plend() to close PLplot library
-    // this is handled by the destructor
-    delete pls;
+#endif
     return 0;
 }

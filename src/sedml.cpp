@@ -496,8 +496,8 @@ public:
                 // apply any changes
                 for (unsigned int i = 0; i < model->getNumChanges(); ++i)
                 {
-                    std::cout << "Got to here :)" << std::endl;
-                    return 999;
+                    // IMPLEMENT THIS BIT ANDRE
+                    std::cerr << "IMPLEMENT THIS BIT ANDRE" << std::endl;
                 }
                 models[m.id] = m;
             }
@@ -1050,10 +1050,11 @@ int Sedml::serialiseOutputs(const std::string &baseOutputName)
             for (unsigned int j = 0; j < p->getNumCurves(); ++j)
             {
                 const SedCurve* curve = p->getCurve(j);
-                data.push_back(XYpair(
+                const std::string curveId = curve->getId();
+                data[curveId] = XYpair(
                             mDataCollection->find(curve->getXDataReference()),
-                            mDataCollection->find(curve->getYDataReference())));
-                std::cout << "Got data: " << data.back().first->second.id << " vs " << data.back().second->second.id << "; for a 2D plot." << std::endl;
+                            mDataCollection->find(curve->getYDataReference()));
+                std::cout << "Got data: " << data[curveId].first->second.id << " vs " << data[curveId].second->second.id << "; for a 2D plot." << std::endl;
             }
             plot2d(data, baseOutputName);
             break;
