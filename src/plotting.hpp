@@ -9,6 +9,7 @@
 typedef std::pair<DataCollection::iterator, DataCollection::iterator> XYpair;
 typedef std::map<std::string, XYpair> CurveData;
 
-int plot2d(const CurveData& data, const std::string& baseOutputName);
+int plot2d(const std::string& plotId, const CurveData& data,
+           const std::string& baseOutputName);
 
 #endif // PLOTTING_H

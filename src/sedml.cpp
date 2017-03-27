@@ -1056,7 +1056,7 @@ int Sedml::serialiseOutputs(const std::string &baseOutputName)
                             mDataCollection->find(curve->getYDataReference()));
                 std::cout << "Got data: " << data[curveId].first->second.id << " vs " << data[curveId].second->second.id << "; for a 2D plot." << std::endl;
             }
-            plot2d(data, baseOutputName);
+            plot2d(p->getId(), data, baseOutputName);
             break;
         }
         case SEDML_OUTPUT_PLOT3D:
