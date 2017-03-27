@@ -25,7 +25,7 @@ static double EvaluateSingle(const libsbml::ASTNode* node, int index,
                 return EvaluateSingle(node->getLeftChild(), index, variables,
                                       parameters);
             result = EvaluateSingle(node->getChild(0), index, variables, parameters);
-            for (int j = 1; j < node->getNumChildren(); ++j)
+            for (unsigned int j = 1; j < node->getNumChildren(); ++j)
                 result += EvaluateSingle(node->getChild(j), index, variables, parameters);
             return result;
         case libsbml::AST_MINUS:
@@ -48,7 +48,7 @@ static double EvaluateSingle(const libsbml::ASTNode* node, int index,
                 return 1.0;
             result = EvaluateSingle(node->getChild(0), index, variables,
                                            parameters);
-            for (int j = 1; j < node->getNumChildren(); ++j)
+            for (unsigned int j = 1; j < node->getNumChildren(); ++j)
             result *= EvaluateSingle(node->getChild(j), index, variables,
                                      parameters);
             return result;
@@ -355,7 +355,7 @@ static std::vector<double> Evaluate(const libsbml::ASTNode* tree,
         return result;
     }
 
-    int length = 0;
+    unsigned int length = 0;
     for (const auto& p: variables)
     {
         if (p.second.data.size() > length) length = p.second.data.size();
@@ -363,7 +363,7 @@ static std::vector<double> Evaluate(const libsbml::ASTNode* tree,
     std::cout << "length = " << length << std::endl;
 
     std::vector<double> result(length);
-    for (int i = 0; i < length; ++i)
+    for (unsigned int i = 0; i < length; ++i)
     {
         result[i] = EvaluateSingle(tree, i, variables, parameters);
     }
