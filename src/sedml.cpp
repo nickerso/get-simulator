@@ -829,7 +829,7 @@ Data Sedml::createData(const std::string &dgId)
         // no point continuing if no math has been set
         if (dg->isSetMath() == false) return data;
         data.math = dg->getMath();
-        for (int vc=0; vc < dg->getNumVariables(); ++vc)
+        for (unsigned int vc=0; vc < dg->getNumVariables(); ++vc)
         {
             SedVariable* v = dg->getVariable(vc);
             Variable var;
@@ -842,7 +842,7 @@ Data Sedml::createData(const std::string &dgId)
             printStringMap(var.namespaces);
             data.variables[v->getId()] = var;
         }
-        for (int pc=0; pc < dg->getNumParameters(); ++pc)
+        for (unsigned int pc=0; pc < dg->getNumParameters(); ++pc)
         {
             SedParameter* p = dg->getParameter(pc);
             std::cout << "\t\tParameter " << p->getId()
@@ -996,7 +996,7 @@ int Sedml::serialiseOutputs(const std::string &baseOutputName)
             // collect the data to be output
             std::vector<std::string> header;
             std::vector<DataCollection::iterator> line;
-            int maxDataLength = 0;
+            unsigned int maxDataLength = 0;
             for (unsigned int j = 0; j < r->getNumDataSets(); ++j)
             {
                 const SedDataSet* dataSet = r->getDataSet(j);
