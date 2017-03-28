@@ -31,7 +31,7 @@ int plot2d(const std::string& plotId, const CurveData& curveData,
         chart[c.first]["x"]["data"] = iterable2json(
                     c.second.first->second.computedData);
         chart[c.first]["y"]["data"] = iterable2json(
-                    c.second.first->second.computedData);
+                    c.second.second->second.computedData);
     }
     // set output target
     std::streambuf* buf;
