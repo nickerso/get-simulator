@@ -22,16 +22,24 @@ Json::Value iterable2json(Iterable const& cont)
 int plot2d(const std::string& plotId, const CurveData& curveData,
            const std::string& baseOutputName)
 {
-    Json::Value chart;
+    Json::Value data;
     for (const auto& c: curveData)
     {
+        Json::Value dataset;
+        dataset["label"] = c.first;
         std::cout << "Creating curve: " << c.first << std::endl;
-        chart[c.first]["x"]["dgId"] = c.second.first->first;
-        chart[c.first]["y"]["dgId"] = c.second.second->first;
-        chart[c.first]["x"]["data"] = iterable2json(
-                    c.second.first->second.computedData);
-        chart[c.first]["y"]["data"] = iterable2json(
-                    c.second.second->second.computedData);
+        dataset["dgIdX"] = c.second.first->first;
+        dataset["dgIdY"] = c.second.second->first;
+        const std::vector<double>& xData = c.second.first->second.computedData;
+        const std::vector<double>& yData = c.second.second->second.computedData;
+        for (unsigned int i = 0; i < xData.size(); ++i)
+        {
+            Json::Value point;
+            point["x"] = xData[i];
+            point["y"] = yData[i];
+            dataset["data"].append(point);
+        }
+        data["datasets"].append(dataset);
     }
     // set output target
     std::streambuf* buf;
@@ -49,7 +57,7 @@ int plot2d(const std::string& plotId, const CurveData& curveData,
         buf = of.rdbuf();
     }
     std::ostream out(buf);
-    out << chart;
+    out << data;
     out << std::endl;
     //response = Json::FastWriter().write(charts);
 #if 0
